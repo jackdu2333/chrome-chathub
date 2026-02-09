@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { X, Plus, Wand2, Edit2, Trash2 } from 'lucide-react';
+import { cn } from '../lib/utils';
 import type { ServiceAdapter } from '../types';
 import { DEFAULT_ADAPTERS } from '../types';
 
@@ -232,168 +233,168 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
         <>
             {/* Backdrop */}
             <div
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+                className={cn(
+                    "fixed inset-0 bg-black/40 backdrop-blur-sm z-50 transition-opacity duration-300",
+                    isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
+                )}
                 onClick={onClose}
             />
 
-            {/* Settings Panel */}
-            <div className="fixed right-0 top-0 h-full w-96 bg-gray-900 border-l border-gray-800 shadow-2xl z-50 flex flex-col">
+            {/* Settings Components - macOS Sheet Style */}
+            <div className={cn(
+                "fixed right-0 top-0 h-full w-[400px] shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.2,0,0,1)]",
+                "bg-mac-light/95 dark:bg-[#1e1e1e]/95 backdrop-blur-xl border-l border-black/5 dark:border-white/10",
+                isOpen ? "translate-x-0" : "translate-x-full"
+            )}>
                 {/* Header */}
-                <div className="h-16 px-6 flex items-center justify-between border-b border-gray-800">
-                    <h2 className="text-lg font-bold text-white">
-                        {editingId ? '编辑服务' : '自定义服务'}
+                <div className="h-[52px] px-6 flex items-center justify-between border-b border-black/5 dark:border-white/5 flex-shrink-0">
+                    <h2 className="text-[17px] font-semibold text-mac-text-light dark:text-mac-text-dark">
+                        {editingId ? '编辑服务' : '设置'}
                     </h2>
                     <button
                         onClick={onClose}
-                        className="p-2 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-colors"
+                        className="btn-icon rounded-full"
                     >
                         <X className="w-5 h-5" />
                     </button>
                 </div>
 
-                {/* Form */}
-                <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                {/* Content */}
+                <div className="flex-1 overflow-y-auto p-5 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
                     {/* Custom Services List */}
                     {customAdapters.length > 0 && !editingId && (
-                        <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                                <h3 className="text-sm font-semibold text-gray-400">
-                                    已添加服务 ({customAdapters.length})
-                                </h3>
-                            </div>
+                        <div className="space-y-4 mb-8">
+                            <h3 className="text-[13px] font-medium text-gray-500 uppercase tracking-wide px-1">
+                                已添加服务 ({customAdapters.length})
+                            </h3>
 
-                            {customAdapters.map(adapter => (
-                                <div
-                                    key={adapter.id}
-                                    className="bg-gray-800 rounded-lg p-4 border border-gray-700 hover:border-gray-600 transition-colors"
-                                >
-                                    <div className="flex items-start justify-between gap-3">
-                                        <div className="flex-1 min-w-0">
-                                            <h4 className="text-white font-medium truncate">
-                                                {adapter.name}
-                                            </h4>
-                                            <p className="text-xs text-gray-400 truncate mt-1">
-                                                {adapter.url}
-                                            </p>
-                                        </div>
-                                        <div className="flex gap-2">
-                                            <button
-                                                onClick={() => handleEdit(adapter)}
-                                                className="p-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors"
-                                                title="编辑"
-                                            >
-                                                <Edit2 className="w-4 h-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(adapter.id, adapter.name)}
-                                                className="p-2 rounded-lg bg-red-600 hover:bg-red-700 text-white transition-colors"
-                                                title="删除"
-                                            >
-                                                <Trash2 className="w-4 h-4" />
-                                            </button>
+                            <div className="space-y-2">
+                                {customAdapters.map(adapter => (
+                                    <div
+                                        key={adapter.id}
+                                        className="bg-white/50 dark:bg-white/5 rounded-xl p-3 border border-black/5 dark:border-white/5 hover:border-blue-500/30 transition-all group"
+                                    >
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="flex-1 min-w-0">
+                                                <h4 className="text-[15px] font-medium text-mac-text-light dark:text-mac-text-dark truncate">
+                                                    {adapter.name}
+                                                </h4>
+                                                <p className="text-[13px] text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                                                    {adapter.url}
+                                                </p>
+                                            </div>
+                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button
+                                                    onClick={() => handleEdit(adapter)}
+                                                    className="btn-icon text-blue-600 dark:text-blue-400"
+                                                    title="编辑"
+                                                >
+                                                    <Edit2 className="w-4 h-4" />
+                                                </button>
+                                                <button
+                                                    onClick={() => handleDelete(adapter.id, adapter.name)}
+                                                    className="btn-icon text-red-600 dark:text-red-400 hover:bg-red-500/10 hover:text-red-600 dark:hover:bg-red-500/20"
+                                                    title="删除"
+                                                >
+                                                    <Trash2 className="w-4 h-4" />
+                                                </button>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
-
-                            <div className="border-t border-gray-700 pt-4 mt-4" />
+                                ))}
+                            </div>
                         </div>
                     )}
 
                     {/* Add/Edit Form */}
-                    <div id="service-form" className="space-y-6">
-                        {/* Name */}
+                    <div id="service-form" className="space-y-5">
+                        <h3 className="text-[13px] font-medium text-gray-500 uppercase tracking-wide px-1 mb-2">
+                            {editingId ? '编辑详情' : '添加新服务'}
+                        </h3>
+
+                        {/* Name Input */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                服务名称 *
+                            <label className="block text-[13px] font-medium text-mac-text-light dark:text-gray-300 mb-1.5">
+                                服务名称
                             </label>
                             <input
                                 type="text"
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 placeholder="e.g., Kimi, Perplexity"
-                                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full px-3 py-2 bg-white/50 dark:bg-black/20 border border-black/10 dark:border-white/10 rounded-lg text-[15px] text-mac-text-light dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
                             />
                         </div>
 
-                        {/* URL */}
+                        {/* URL Input */}
                         <div>
-                            <label className="block text-sm font-medium text-gray-300 mb-2">
-                                网址 URL *
+                            <label className="block text-[13px] font-medium text-mac-text-light dark:text-gray-300 mb-1.5">
+                                网址 URL
                             </label>
                             <input
                                 type="url"
                                 value={url}
                                 onChange={(e) => setUrl(e.target.value)}
                                 placeholder="https://example.com"
-                                className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                className="w-full px-3 py-2 bg-white/50 dark:bg-black/20 border border-black/10 dark:border-white/10 rounded-lg text-[15px] text-mac-text-light dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all mb-2"
                             />
 
                             {/* Auto-Detect Button */}
                             <button
                                 onClick={handleAutoDetect}
                                 disabled={!url.trim() || detecting}
-                                className="mt-3 w-full px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-700 disabled:text-gray-500 text-white rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-colors"
+                                className="w-full px-4 py-2 bg-purple-600/10 hover:bg-purple-600/20 text-purple-600 dark:text-purple-400 border border-purple-500/20 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 <Wand2 className={`w-4 h-4 ${detecting ? 'animate-spin' : ''}`} />
-                                {detecting ? '检测中...' : '🪄 自动检测选择器'}
+                                {detecting ? '正在分析页面结构...' : '自动检测选择器'}
                             </button>
-                            <p className="mt-2 text-xs text-gray-500">
-                                自动查找输入框和发送按钮选择器
-                            </p>
                         </div>
 
                         {/* Advanced Section */}
-                        <div className="pt-4 border-t border-gray-800">
-                            <h3 className="text-sm font-semibold text-gray-400 mb-4">高级选项 (可选)</h3>
+                        <div className="pt-4 border-t border-black/5 dark:border-white/5">
+                            <h4 className="text-[13px] font-medium text-gray-400 mb-3">高级配置</h4>
 
                             {/* Input Selector */}
                             <div className="mb-4">
-                                <label className="block text-sm font-medium text-gray-300 mb-2">
-                                    输入框 CSS 选择器
+                                <label className="block text-[12px] text-gray-500 mb-1.5">
+                                    输入框 Selectors
                                 </label>
                                 <input
                                     type="text"
                                     value={inputSelector}
                                     onChange={(e) => setInputSelector(e.target.value)}
-                                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-xs"
+                                    className="w-full px-3 py-2 bg-white/40 dark:bg-black/20 border border-black/5 dark:border-white/10 rounded-lg text-xs font-mono text-gray-600 dark:text-gray-300 focus:ring-1 focus:ring-blue-500 outline-none"
                                 />
-                                <p className="mt-1 text-xs text-gray-500">
-                                    输入框的 CSS 选择器
-                                </p>
                             </div>
 
                             {/* Submit Selector */}
                             <div>
-                                <label className="block text-sm font-medium text-gray-300 mb-2">
-                                    发送按钮 CSS 选择器
+                                <label className="block text-[12px] text-gray-500 mb-1.5">
+                                    发送按钮 Selectors
                                 </label>
                                 <input
                                     type="text"
                                     value={submitSelector}
                                     onChange={(e) => setSubmitSelector(e.target.value)}
-                                    className="w-full px-4 py-2 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 font-mono text-xs"
+                                    className="w-full px-3 py-2 bg-white/40 dark:bg-black/20 border border-black/5 dark:border-white/10 rounded-lg text-xs font-mono text-gray-600 dark:text-gray-300 focus:ring-1 focus:ring-blue-500 outline-none"
                                 />
-                                <p className="mt-1 text-xs text-gray-500">
-                                    发送按钮的 CSS 选择器
-                                </p>
                             </div>
                         </div>
                     </div>
 
                     {/* Footer Buttons */}
-                    <div className="flex items-center justify-end gap-3 pt-6">
+                    <div className="flex items-center justify-end gap-3 pt-8 pb-4">
                         {editingId ? (
                             <>
                                 <button
                                     onClick={handleCancelEdit}
-                                    className="px-4 py-2 text-sm text-gray-400 hover:text-white transition-colors"
+                                    className="btn-secondary px-4 min-w-[80px]"
                                 >
                                     取消
                                 </button>
                                 <button
                                     onClick={handleSave}
-                                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                                    className="btn-primary px-4 min-w-[80px]"
                                 >
                                     保存修改
                                 </button>
@@ -401,7 +402,7 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
                         ) : (
                             <button
                                 onClick={handleSave}
-                                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition-colors"
+                                className="btn-primary w-full py-2.5"
                             >
                                 <Plus className="w-4 h-4" />
                                 添加服务

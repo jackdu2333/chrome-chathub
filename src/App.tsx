@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
+import { MessageSquare, PanelLeft } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -100,26 +101,49 @@ function App() {
     return "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
   };
 
+  // Auto-hide Sidebar Logic
+  const sidebarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSidebarMouseEnter = () => {
+    if (sidebarTimerRef.current) {
+      clearTimeout(sidebarTimerRef.current);
+      sidebarTimerRef.current = null;
+    }
+  };
+
+  const handleSidebarMouseLeave = () => {
+    // Only auto-hide if it's currently open
+    if (!isSidebarCollapsed) {
+      sidebarTimerRef.current = setTimeout(() => {
+        setIsSidebarCollapsed(true);
+      }, 10000); // 10 seconds
+    }
+  };
+
+  // Clear timer if manually toggled or component unmounts
+  // We can wrap the toggle in a handler if we want to be precise,
+  // but just clearing on enter/leave is the main requirement.
+
   const isDarkMode = useStore((state) => state.isDarkMode);
 
   return (
     <div
       className={cn(
-        "flex h-screen w-screen overflow-hidden font-sans",
-        isDarkMode ? "bg-gray-900 text-gray-100" : "text-gray-900"
+        "flex h-screen w-screen overflow-hidden font-system",
+        isDarkMode ? "bg-mac-dark text-mac-text-dark" : "bg-mac-light text-mac-text-light"
       )}
-      style={!isDarkMode ? { backgroundColor: '#6d8db6' } : undefined}
+    // Removed inline style to rely on Tailwind classes
     >
       {/* 1. Sidebar */}
       <Sidebar
         adapters={availableAdapters}
         activeBotIds={activeBots.map(b => b.id)}
         onToggleBot={handleToggleBot}
-        onTogglePrompts={() => setIsPromptsOpen(!isPromptsOpen)}
-        isPromptsOpen={isPromptsOpen}
         onOpenSettings={() => setIsSettingsOpen(true)}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        onMouseEnter={handleSidebarMouseEnter}
+        onMouseLeave={handleSidebarMouseLeave}
       />
 
       {/* 2. Main Content - Split into Chat Area + Input Bar */}
@@ -202,7 +226,7 @@ function App() {
             </DndContext>
           )}
           {/* 3. Unified Input Bar (Absolute Bottom - Inside Main Content) */}
-          <UnifiedInput onTogglePrompts={() => setIsPromptsOpen(!isPromptsOpen)} />
+          <UnifiedInput />
         </div>
       </div>
 
@@ -213,6 +237,20 @@ function App() {
         isSidebarCollapsed={isSidebarCollapsed}
       />
 
+      {/* Prompt Library Floating Button (Bottom Right) */}
+      <button
+        onClick={() => setIsPromptsOpen(!isPromptsOpen)}
+        className={cn(
+          "fixed bottom-9 right-6 z-50 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 shadow-2xl hover:scale-105 active:scale-95",
+          "bg-white/80 dark:bg-[#2c2c2e]/80 backdrop-blur-2xl backdrop-saturate-200",
+          "border border-white/20 dark:border-white/[0.08] shadow-black/20",
+          isPromptsOpen ? "text-blue-500 bg-white dark:bg-[#3a3a3c]" : "text-gray-600 dark:text-gray-300"
+        )}
+        title="提示词库"
+      >
+        <MessageSquare className="w-6 h-6" />
+      </button>
+
       {/* 5. Settings Modal */}
       <Settings
         isOpen={isSettingsOpen}
@@ -222,6 +260,26 @@ function App() {
         onRemoveAdapter={removeCustomAdapter}
         onUpdateAdapter={updateCustomAdapter}
       />
+
+      {/* Floating Sidebar Toggle (Visible when collapsed) */}
+      <div
+        className={cn(
+          "fixed bottom-9 left-6 z-50 transition-all duration-300",
+          isSidebarCollapsed ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4 pointer-events-none"
+        )}
+      >
+        <button
+          onClick={() => setIsSidebarCollapsed(false)}
+          className={cn(
+            "w-12 h-12 rounded-full flex items-center justify-center shadow-2xl transition-transform hover:scale-105 active:scale-95",
+            "bg-white/80 dark:bg-[#2c2c2e]/80 backdrop-blur-2xl backdrop-saturate-200 border border-white/20 dark:border-white/[0.08]",
+            "text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white"
+          )}
+          title="展开侧边栏"
+        >
+          <PanelLeft className="w-6 h-6" />
+        </button>
+      </div>
 
       {/* Overlay for Focus Mode (Background dim) */}
       {focusedBotId && activeBots.length > 1 && (

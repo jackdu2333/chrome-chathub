@@ -2,11 +2,56 @@
 @tailwind components;
 @tailwind utilities;
 
+@layer base {
+
+  html,
+  body {
+    @apply font-system antialiased text-mac-text-light bg-mac-light dark:text-mac-text-dark dark:bg-mac-dark;
+    overscroll-behavior: none;
+  }
+}
+
+@layer components {
+  .macos-panel {
+    @apply bg-white/70 dark:bg-[#1d1d1f]/60 backdrop-blur-[20px] backdrop-saturate-[180%] border border-black/5 dark:border-white/[0.08] rounded-xl shadow-mac-panel;
+  }
+
+  .macos-vibrancy {
+    @apply bg-white/70 dark:bg-[#1d1d1f]/60 backdrop-blur-[20px] backdrop-saturate-[180%] border-black/5 dark:border-white/[0.08];
+  }
+
+  .macos-vibrancy {
+    @apply backdrop-blur-[20px] backdrop-saturate-[180%] bg-white/70 dark:bg-[#1d1d1f]/60 border-black/5 dark:border-white/[0.08];
+    /* Using #1d1d1f is close to 29,29,31. User asked for rgba(29, 29, 31, 0.6). 29,29,31 is #1d1d1f. So bg-[#1d1d1f]/60 is correct. */
+  }
+
+  /* Base button styles */
+  .btn-base {
+    @apply inline-flex items-center justify-center gap-2 rounded-[6px] text-sm font-medium transition-all duration-200 active:scale-[0.98] select-none;
+  }
+
+  /* Secondary button (default action) */
+  .btn-secondary {
+    @apply btn-base bg-black/5 hover:bg-black/10 active:bg-black/15 border border-black/10 text-mac-text-light dark:bg-white/10 dark:hover:bg-white/15 dark:active:bg-white/20 dark:border-white/10 dark:text-mac-text-dark;
+  }
+
+  /* Primary button (confirm action) */
+  .btn-primary {
+    @apply btn-base bg-[#007AFF] hover:bg-[#0071E3] active:bg-[#0062C4] text-white shadow-sm border border-transparent;
+  }
+
+  /* Danger button */
+  .btn-danger {
+    @apply btn-base bg-red-500/10 hover:bg-red-500/20 active:bg-red-500/30 text-red-600 border border-red-500/20 dark:text-red-400 dark:border-red-500/30;
+  }
+
+  /* Icon-only button variant */
+  .btn-icon {
+    @apply p-1.5 rounded-[6px] text-gray-500 hover:bg-black/5 hover:text-black active:bg-black/10 transition-colors dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white dark:active:bg-white/20;
+  }
+}
+
 /* Fix for iframe swallowing mouse events during drag */
 body.is-dragging iframe {
   pointer-events: none !important;
-}
-
-body, html {
-  overscroll-behavior: none;
 }
