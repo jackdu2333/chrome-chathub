@@ -1,0 +1,54 @@
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { ChatFrame } from './ChatFrame';
+import type { ChatBot } from '../types';
+
+interface SortableChatFrameProps {
+    bot: ChatBot;
+    isFocused: boolean;
+    onToggleFocus: () => void;
+    onRemove: () => void;
+}
+
+export function SortableChatFrame({ bot, isFocused, onToggleFocus, onRemove }: SortableChatFrameProps) {
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({ id: bot.instanceId });
+
+    // Apply transform and transition to the wrapper
+    const style = {
+        // use Translate instead of Transform to avoid scaling issues
+        transform: CSS.Translate.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1, // Visual feedback for original item leaving
+        zIndex: isDragging ? 50 : 'auto', // Ensure dragging item is above others
+        position: 'relative' as const,
+        height: '100%', // FORCE height to fill grid cell
+    };
+
+    return (
+        // Attributes belong on the root draggable element
+        // Listeners belong on the handle (passed via ChatFrame)
+        <div
+            ref={setNodeRef}
+            style={{ ...style, height: '100%', width: '100%' }} // Enforce 100% dimensions
+            {...attributes}
+            className="flex flex-col min-h-0 min-w-0 touch-none outline-none"
+        >
+            <ChatFrame
+                bot={bot}
+                isFocused={isFocused}
+                onToggleFocus={onToggleFocus}
+                onRemove={onRemove}
+                // Pass listeners only to be attached to the drag handle (Header)
+                dragListeners={listeners}
+                isDragging={isDragging}
+            />
+        </div>
+    );
+}
