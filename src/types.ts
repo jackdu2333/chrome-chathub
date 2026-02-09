@@ -128,7 +128,7 @@ export const DEFAULT_ADAPTERS: ServiceAdapter[] = [
         name: 'ChatGLM',
         url: 'https://chatglm.cn',
         icon: 'Bot',
-        inputSelector: 'textarea, div[contenteditable="true"][role="textbox"]',
+        inputSelector: 'div[contenteditable="true"][role="textbox"], textarea',
         submitSelector: 'button[type="submit"], button[aria-label*="发送" i], .enter-btn, div[class*="enter-btn"], div[class*="send-btn"]'
     }
 ];
@@ -146,6 +146,11 @@ export type MessageType =
 export interface UserMessagePayload {
     text: string;
     autoSubmit: boolean;
+    files?: {
+        name: string;
+        type: string;
+        data: string; // Base64
+    }[];
 }
 
 export interface InjectPromptPayload {

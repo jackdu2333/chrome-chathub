@@ -1,4 +1,4 @@
-import { DEFAULT_ADAPTERS, ServiceAdapter } from '../types';
+import { DEFAULT_ADAPTERS, ServiceAdapter, UserMessagePayload } from '../types';
 import { detectSelectors } from '../lib/selectorDetector';
 
 console.log('[ChatHub Content] Script loaded for:', window.location.hostname);
@@ -127,8 +127,8 @@ function handleDetectSelectors() {
     }
 }
 
-async function handleUserMessage({ text, autoSubmit }: { text: string, autoSubmit: boolean }) {
-    console.log('[ChatHub Content] 🔄 Processing message:', { text: text.substring(0, 50), autoSubmit });
+async function handleUserMessage({ text, autoSubmit, files }: UserMessagePayload) {
+    console.log('[ChatHub Content] 🔄 Processing message:', { text: text.substring(0, 50), autoSubmit, filesCount: files?.length });
 
     if (!currentAdapter) {
         console.error('[ChatHub Content] ❌ No adapter found for this site');
@@ -151,12 +151,26 @@ async function handleUserMessage({ text, autoSubmit }: { text: string, autoSubmi
 
     console.log('[ChatHub Content] ✅ Found input element:', inputEl.tagName, inputEl.className);
 
-    // 2. Set Value
-    await setNativeValue(inputEl, text);
-    console.log('[ChatHub Content] ✅ Value set to input');
+    // 2. Handle File Uploads (Pre-text)
+    if (files && files.length > 0) {
+        console.log('[ChatHub Content] 📂 Found files to upload:', files.length);
+        const success = await handleFileUpload(inputEl, files);
+        if (success) {
+            console.log('[ChatHub Content] ✅ File upload simulation completed');
+            // Wait for UI to react/upload to finish (mock waiter)
+            await randomDelay(2500, 4000);
+        } else {
+            console.warn('[ChatHub Content] ⚠️ File upload simulation failed or not supported');
+        }
+    }
 
+    // 3. Set Value
+    if (text) {
+        await setNativeValue(inputEl, text);
+        console.log('[ChatHub Content] ✅ Value set to input');
+    }
 
-    // 3. Submit if requested
+    // 4. Submit if requested
     if (autoSubmit) {
         console.log('[ChatHub Content] 🚀 Auto-submit is ENABLED');
 
@@ -174,20 +188,42 @@ async function handleUserMessage({ text, autoSubmit }: { text: string, autoSubmi
                 if (submitBtn) {
                     console.log('[ChatHub Content] ✅ Found submit button:', submitBtn.tagName, submitBtn.className);
 
-                    // CRITICAL: Force-enable the button (DeepSeek keeps it disabled even after keyboard events)
-                    submitBtn.removeAttribute('disabled');
-                    submitBtn.removeAttribute('aria-disabled');
-                    submitBtn.classList.remove('disabled');
-                    submitBtn.classList.remove('ds-icon-button--disabled');
-                    if (submitBtn instanceof HTMLButtonElement) submitBtn.disabled = false;
+                    // Wait for button to be enabled (up to 5s)
+                    // This allows file uploads to complete on sites like Gemini
+                    let isEnabled = false;
+                    for (let i = 0; i < 25; i++) { // 25 * 200ms = 5000ms
+                        // Check multiple ways a button can be disabled
+                        const isDisabled = submitBtn.hasAttribute('disabled') ||
+                            submitBtn.getAttribute('aria-disabled') === 'true' ||
+                            submitBtn.classList.contains('disabled') ||
+                            (submitBtn as any).disabled;
 
-                    // Short delay to let the DOM settle after enabling
-                    await randomDelay(100, 200);
+                        if (!isDisabled) {
+                            isEnabled = true;
+                            break;
+                        }
+                        await randomDelay(200, 200);
+                    }
 
-                    console.log('[ChatHub Content] 🔓 Forcefully enabled button, now clicking...');
-                    clickElement(submitBtn);
-                    console.log('[ChatHub Content] 🖱️ Clicked submit button');
-                    submitSuccess = true;
+                    if (isEnabled) {
+                        console.log('[ChatHub Content] ✅ Button is enabled, clicking...');
+                        clickElement(submitBtn);
+                        console.log('[ChatHub Content] 🖱️ Clicked submit button');
+                        submitSuccess = true;
+                    } else {
+                        console.warn('[ChatHub Content] ⚠️ Button still disabled after timeout. Force enabling as last resort...');
+                        // CRITICAL: Force-enable the button (DeepSeek fallback)
+                        submitBtn.removeAttribute('disabled');
+                        submitBtn.removeAttribute('aria-disabled');
+                        submitBtn.classList.remove('disabled');
+                        submitBtn.classList.remove('ds-icon-button--disabled');
+                        if (submitBtn instanceof HTMLButtonElement) submitBtn.disabled = false;
+
+                        await randomDelay(100, 200);
+                        clickElement(submitBtn);
+                        console.log('[ChatHub Content] 🖱️ Force clicked submit button');
+                        submitSuccess = true;
+                    }
                 } else {
                     console.log('[ChatHub Content] ⚠️ Submit button not found via selector');
                 }
@@ -207,6 +243,135 @@ async function handleUserMessage({ text, autoSubmit }: { text: string, autoSubmi
     }
 
     console.log('[ChatHub Content] ✅ Message handled successfully');
+}
+
+/**
+ * Handles file upload simulation via Drag and Drop
+ */
+async function handleFileUpload(targetElement: HTMLElement, files: NonNullable<UserMessagePayload['files']>) {
+    try {
+        console.log('[ChatHub Content] 📂 Starting refined file upload sequence...');
+
+        // 1. Convert Base64 files back to File objects
+        const fileObjects = files.map(f => base64ToFile(f.data, f.name, f.type));
+
+        // Create a DataTransfer object (reused for all strategies)
+        const dataTransfer = new DataTransfer();
+        fileObjects.forEach(file => dataTransfer.items.add(file));
+        dataTransfer.effectAllowed = 'all';
+        dataTransfer.dropEffect = 'copy';
+
+        // --- Strategy 1: Paste Event (ContentEditable / Rich Text editors) ---
+        // Most modern AI chats (ChatGLM, Claude, ChatGPT, Gemini, Yiyan) use contenteditable divs
+        if (targetElement.isContentEditable || targetElement.getAttribute('contenteditable') === 'true') {
+            try {
+                console.log('[ChatHub Content] 📋 Strategy 1 (Paste): Dispatching Paste event...');
+                const pasteEvent = new ClipboardEvent('paste', {
+                    bubbles: true,
+                    cancelable: true,
+                    composed: true,
+                    clipboardData: dataTransfer
+                });
+                targetElement.dispatchEvent(pasteEvent);
+                console.log('[ChatHub Content] ✅ Paste event dispatched (Exclusive Strategy)');
+
+                // For some editors, we might need to focus explicitly
+                targetElement.focus();
+
+                return true; // Stop here to avoid duplicates
+            } catch (err) {
+                console.warn('[ChatHub Content] ⚠️ Paste simulation failed:', err);
+                // Fallthrough to other strategies if paste fails completely (unlikely)
+            }
+        }
+
+        // --- Strategy 2: File Input Injection (Native Forms / Textareas) ---
+        try {
+            // Find the most likely file input
+            // 1. Look inside the same form/container as the target
+            let fileInput = targetElement.closest('form')?.querySelector('input[type="file"]') as HTMLInputElement;
+
+            // 2. If not found, look for any visible file input in the document
+            if (!fileInput) {
+                const inputs = Array.from(document.querySelectorAll('input[type="file"]')) as HTMLInputElement[];
+                // Filter out disabled inputs
+                const activeInputs = inputs.filter(input => !input.disabled);
+                if (activeInputs.length > 0) {
+                    // Start with the last one (often the most recently added for the chat context) or just the first
+                    fileInput = activeInputs[0];
+                }
+            }
+
+            if (fileInput) {
+                console.log('[ChatHub Content] 📎 Strategy 2 (Input): Found file input, setting files...');
+                fileInput.files = dataTransfer.files;
+                fileInput.dispatchEvent(new Event('change', { bubbles: true }));
+                fileInput.dispatchEvent(new Event('input', { bubbles: true }));
+                console.log('[ChatHub Content] ✅ File input set successfully (Exclusive Strategy)');
+                return true; // Stop here
+            }
+        } catch (err) {
+            console.warn('[ChatHub Content] ⚠️ File Input injection failed:', err);
+        }
+
+        // --- Strategy 3: Drag & Drop (Fallback) ---
+        try {
+            console.log('[ChatHub Content] 🖱️ Strategy 3 (Drag&Drop): Dispatching events...');
+            const eventProps = {
+                bubbles: true,
+                cancelable: true,
+                composed: true,
+                dataTransfer: dataTransfer,
+                view: window
+            };
+
+            // Dispatch to target
+            targetElement.dispatchEvent(new DragEvent('dragenter', eventProps));
+            targetElement.dispatchEvent(new DragEvent('dragover', eventProps));
+            targetElement.dispatchEvent(new DragEvent('drop', eventProps));
+
+            // Dispatch to body (global dropzone fallback)
+            document.body.dispatchEvent(new DragEvent('dragenter', eventProps));
+            document.body.dispatchEvent(new DragEvent('dragover', eventProps));
+            document.body.dispatchEvent(new DragEvent('drop', eventProps));
+
+            console.log('[ChatHub Content] ✅ Drag & Drop events dispatched');
+            return true;
+        } catch (err) {
+            console.warn('[ChatHub Content] ⚠️ Drag & Drop simulation failed:', err);
+        }
+
+        return false;
+    } catch (e) {
+        console.error('[ChatHub Content] File upload error:', e);
+        return false;
+    }
+}
+
+/**
+ * Helper: Convert Base64 string to File object
+ */
+function base64ToFile(base64Data: string, filename: string, mimeType: string): File {
+    // Remove "data:image/png;base64," prefix if present
+    const cleanBase64 = base64Data.includes(',') ? base64Data.split(',')[1] : base64Data;
+
+    const byteCharacters = atob(cleanBase64);
+    const byteArrays = [];
+
+    for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+        const slice = byteCharacters.slice(offset, offset + 512);
+        const byteNumbers = new Array(slice.length);
+
+        for (let i = 0; i < slice.length; i++) {
+            byteNumbers[i] = slice.charCodeAt(i);
+        }
+
+        const byteArray = new Uint8Array(byteNumbers);
+        byteArrays.push(byteArray);
+    }
+
+    const blob = new Blob(byteArrays, { type: mimeType });
+    return new File([blob], filename, { type: mimeType });
 }
 
 /**
