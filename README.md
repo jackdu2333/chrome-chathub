@@ -53,6 +53,13 @@ This will create a `dist` folder in the project root.
 -   **dnd-kit** (Drag and Drop)
 -   **Lucide React** (Icons)
 
+## Features
+
+-   **Multi-Model Chat**: Chat with multiple AI models simultaneously.
+-   **File Upload**: Drag & drop or paste files to specific AIs (Gemini, ChatGLM supported).
+-   **Auto-hide Sidebar**: Sidebar automatically collapses to save space.
+-   **macOS Style UI**: Glassmorphism, smooth animations, and native-like feel.
+
 ## Design System
 -   **Font**: System Stack (`-apple-system`, `BlinkMacSystemFont`, etc.)
 -   **Theme**: Dynamic Light/Dark mode based on system preference.

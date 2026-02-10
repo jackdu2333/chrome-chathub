@@ -124,13 +124,14 @@ function App() {
   // We can wrap the toggle in a handler if we want to be precise,
   // but just clearing on enter/leave is the main requirement.
 
-  const isDarkMode = useStore((state) => state.isDarkMode);
+  // const isDarkMode = useStore((state) => state.isDarkMode); // Removed usage for direct Tailwind dark: classes
 
   return (
     <div
       className={cn(
-        "flex h-screen w-screen overflow-hidden font-system",
-        isDarkMode ? "bg-mac-dark text-mac-text-dark" : "bg-mac-light text-mac-text-light"
+        "flex h-screen w-screen overflow-hidden font-system transition-colors duration-300",
+        // Global Bg: Light=Gray-100 / Dark=Gray-950
+        "bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-gray-100"
       )}
     // Removed inline style to rely on Tailwind classes
     >
@@ -149,14 +150,14 @@ function App() {
       {/* 2. Main Content - Split into Chat Area + Input Bar */}
       <div className="flex-1 flex flex-col h-full relative">
         {/* 2a. Chat Grid Container (grows to fill available space) */}
-        <div className="flex-1 overflow-hidden p-4 pb-[120px]">
+        <div className="flex-1 overflow-hidden px-4 pt-1.5 pb-[82px]">
           {activeBots.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-gray-500 space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-gray-800 flex items-center justify-center">
+              <div className="w-16 h-16 rounded-2xl bg-gray-200 dark:bg-gray-800 flex items-center justify-center">
                 <span className="text-2xl">⚡️</span>
               </div>
-              <p className="text-lg font-medium">暂无活跃对话</p>
-              <p className="text-sm">请从左侧栏选择一个 AI 服务开始</p>
+              <p className="text-lg font-medium text-gray-500 dark:text-gray-400">暂无活跃对话</p>
+              <p className="text-sm text-gray-400 dark:text-gray-500">请从左侧栏选择一个 AI 服务开始</p>
             </div>
           ) : (
             <DndContext
@@ -241,10 +242,10 @@ function App() {
       <button
         onClick={() => setIsPromptsOpen(!isPromptsOpen)}
         className={cn(
-          "fixed bottom-9 right-6 z-50 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 shadow-2xl hover:scale-105 active:scale-95",
-          "bg-white/80 dark:bg-[#2c2c2e]/80 backdrop-blur-2xl backdrop-saturate-200",
-          "border border-white/20 dark:border-white/[0.08] shadow-black/20",
-          isPromptsOpen ? "text-blue-500 bg-white dark:bg-[#3a3a3c]" : "text-gray-600 dark:text-gray-300"
+          "fixed bottom-3 right-6 z-50 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 shadow-xl hover:scale-105 active:scale-95",
+          "bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl",
+          "border border-gray-200 dark:border-white/10",
+          isPromptsOpen ? "text-blue-500 bg-white dark:bg-gray-700" : "text-gray-600 dark:text-gray-300"
         )}
         title="提示词库"
       >
@@ -261,18 +262,18 @@ function App() {
         onUpdateAdapter={updateCustomAdapter}
       />
 
-      {/* Floating Sidebar Toggle (Visible when collapsed) */}
+      {/* Floating Sidebar Toggle (Recovery for users who expect a button) */}
       <div
         className={cn(
-          "fixed bottom-9 left-6 z-50 transition-all duration-300",
+          "fixed bottom-3 left-6 z-50 transition-all duration-300",
           isSidebarCollapsed ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4 pointer-events-none"
         )}
       >
         <button
           onClick={() => setIsSidebarCollapsed(false)}
           className={cn(
-            "w-12 h-12 rounded-full flex items-center justify-center shadow-2xl transition-transform hover:scale-105 active:scale-95",
-            "bg-white/80 dark:bg-[#2c2c2e]/80 backdrop-blur-2xl backdrop-saturate-200 border border-white/20 dark:border-white/[0.08]",
+            "w-12 h-12 rounded-full flex items-center justify-center shadow-xl transition-transform hover:scale-105 active:scale-95",
+            "bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border border-gray-200 dark:border-white/10",
             "text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white"
           )}
           title="展开侧边栏"

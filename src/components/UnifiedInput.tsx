@@ -9,7 +9,7 @@ interface UnifiedInputProps {
 }
 
 export function UnifiedInput({ }: UnifiedInputProps) {
-    const { isSyncEnabled, setSyncEnabled, reloadAllBots, draftContent, setDraftContent, isDarkMode } = useStore();
+    const { isSyncEnabled, setSyncEnabled, reloadAllBots, draftContent, setDraftContent } = useStore();
     const [selectedFiles, setSelectedFiles] = useState<{ name: string; type: string; data: string }[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -28,6 +28,8 @@ export function UnifiedInput({ }: UnifiedInputProps) {
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.nativeEvent.isComposing) return;
+
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             handleSend();
@@ -77,9 +79,11 @@ export function UnifiedInput({ }: UnifiedInputProps) {
 
     return (
         <div className={cn(
-            "absolute bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-4xl min-h-[72px] rounded-[20px] flex items-end px-4 py-3 gap-3 z-50 transition-all duration-300",
-            "bg-white/80 dark:bg-[#2c2c2e]/80 backdrop-blur-2xl backdrop-saturate-200",
-            "border border-white/20 dark:border-white/[0.08] shadow-2xl shadow-black/20",
+            "absolute bottom-2 left-1/2 -translate-x-1/2 w-[90%] max-w-4xl min-h-[54px] rounded-[20px] flex items-end px-4 py-2 gap-3 z-50 transition-all duration-300",
+            // Bg: Light=White/80 / Dark=Gray-900/80
+            "bg-white/80 dark:bg-gray-900/80 backdrop-blur-xl backdrop-saturate-150",
+            // Border: Light=Gray-200 / Dark=White/10
+            "border border-gray-200 dark:border-white/10 shadow-lg dark:shadow-black/20 ring-1 ring-black/5 dark:ring-white/5",
             // macOS floating panel vibe
         )}>
             {/* Hidden File Input */}
@@ -95,14 +99,14 @@ export function UnifiedInput({ }: UnifiedInputProps) {
             <div className="flex items-center gap-1 mb-1.5">
                 <button
                     onClick={handleNewChat}
-                    className="btn-icon p-2.5"
+                    className="btn-icon p-2.5 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5"
                     title="新对话"
                 >
                     <Plus className="w-5 h-5" />
                 </button>
                 <button
                     onClick={() => fileInputRef.current?.click()}
-                    className="btn-icon p-2.5"
+                    className="btn-icon p-2.5 text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5"
                     title="上传文件"
                 >
                     <Paperclip className="w-5 h-5" />
@@ -111,10 +115,10 @@ export function UnifiedInput({ }: UnifiedInputProps) {
 
             {/* Section 3: Input Area (Middle) */}
             <div className={cn(
-                "flex-1 rounded-[12px] flex flex-col justify-center px-4 transition-all duration-200 min-h-[44px]",
-                isDarkMode
-                    ? "bg-black/20 focus-within:bg-black/30 border border-transparent focus-within:border-white/10"
-                    : "bg-black/5 focus-within:bg-black/10 border border-transparent focus-within:border-black/5"
+                "flex-1 rounded-[12px] flex flex-col justify-center px-4 transition-all duration-200 min-h-[38px]",
+                // Textarea Bg: Light=Gray-100 / Dark=Gray-800
+                "bg-gray-100 dark:bg-gray-800",
+                "border border-transparent focus-within:border-gray-300 dark:focus-within:border-white/10"
             )}>
                 {/* File Previews */}
                 {selectedFiles.length > 0 && (
@@ -122,15 +126,15 @@ export function UnifiedInput({ }: UnifiedInputProps) {
                         {selectedFiles.map((file, index) => (
                             <div key={index} className={cn(
                                 "flex items-center gap-2 pl-2 pr-1 py-1 rounded-lg border max-w-[200px]",
-                                isDarkMode ? "bg-white/10 border-white/10" : "bg-white/50 border-black/5"
+                                "bg-white/50 dark:bg-black/20 border-gray-200 dark:border-white/5"
                             )}>
                                 <div className="flex-shrink-0 text-blue-500">
                                     {file.type.startsWith('image/') ? <ImageIcon className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
                                 </div>
-                                <span className="text-xs truncate">{file.name}</span>
+                                <span className="text-xs truncate text-gray-700 dark:text-gray-300">{file.name}</span>
                                 <button
                                     onClick={() => handleRemoveFile(index)}
-                                    className="p-0.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-full transition-colors"
+                                    className="p-0.5 hover:bg-gray-200 dark:hover:bg-white/10 rounded-full transition-colors"
                                 >
                                     <X className="w-3 h-3 opacity-70" />
                                 </button>
@@ -146,14 +150,16 @@ export function UnifiedInput({ }: UnifiedInputProps) {
                     onPaste={handlePaste}
                     placeholder="输入消息..."
                     className={cn(
-                        "w-full bg-transparent border-none focus:ring-0 resize-none py-2.5 outline-none text-[15px] font-medium placeholder:font-normal leading-relaxed",
-                        isDarkMode ? "text-white placeholder-white/30" : "text-black placeholder-black/40",
+                        "w-full bg-transparent border-none focus:ring-0 resize-none py-2 outline-none text-[15px] font-medium leading-relaxed",
+                        // Text: Light=Gray-900 / Dark=Gray-100
+                        // Placeholder: Light=Gray-500 / Dark=Gray-400
+                        "text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400",
                         "[&::-webkit-scrollbar]:hidden" // Hide Chrome/Safari/Edge scrollbar
                     )}
                     style={{
                         scrollbarWidth: 'none',
                         height: 'auto',
-                        minHeight: '44px',
+                        minHeight: '38px',
                         maxHeight: '200px'
                     }}
                     rows={1}
@@ -173,12 +179,14 @@ export function UnifiedInput({ }: UnifiedInputProps) {
             </div>
 
             {/* Section 4: Sync Toggle (Right) */}
-            <div className="pl-2 border-l border-black/5 dark:border-white/5 mb-1.5">
+            <div className="pl-2 border-l border-gray-200 dark:border-white/10 mb-1.5">
                 <button
                     onClick={() => setSyncEnabled(!isSyncEnabled)}
                     className={cn(
                         "btn-icon p-2.5",
-                        isSyncEnabled && "text-blue-500 bg-blue-500/10 hover:bg-blue-500/20 active:bg-blue-500/30"
+                        isSyncEnabled
+                            ? "text-blue-500 bg-blue-500/10 hover:bg-blue-500/20 active:bg-blue-500/30"
+                            : "text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-white/5"
                     )}
                     title={isSyncEnabled ? "同步发送开启" : "同步发送关闭"}
                 >

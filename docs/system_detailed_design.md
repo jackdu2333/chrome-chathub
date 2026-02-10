@@ -119,7 +119,17 @@ element.dispatchEvent(new Event('input', { bubbles: true }));
 
 ### 3.6 侧边栏交互 (New)
 - **宽幅展开**: 侧边栏支持从 `64px` 展开至 `256px`。
+- **自动隐藏**: 鼠标离开侧边栏区域 10 秒后自动收起（宽度变为 0），鼠标移入左侧边缘热区时唤醒。
 - **Z-Index 管理**: 提示词库面板 (`PromptLibrary`) 会根据侧边栏状态动态调整 `left` 值 (`16` -> `64`)，避免遮挡。
+
+### 3.7 文件上传机制 (New)
+支持图片和文件的跨窗口传输。
+- **DataTransfer 模拟**: 构建 `DataTransfer` 对象，将 Base64 文件转换为 File 对象。
+- **事件分发**:
+    - 通用: 尝试 `paste` 事件。
+    - **Gemini**: 必须使用 `paste` 事件且聚焦在 `div[contenteditable]`。
+    - **ChatGLM**: 针对其上传组件的特殊去重处理 (防止重复触发)。
+    - **DeepSeek**: 暂不支持文件上传（接口限制）。
 
 ---
 
@@ -145,6 +155,20 @@ interface StorageData {
     customAdapters: ServiceAdapter[]; // 用户自定义的站点
 }
 ```
+
+### 4.3 UserMessagePayload (消息载荷)
+```typescript
+interface UserMessagePayload {
+    text: string;
+    autoSubmit: boolean;
+    files?: {           // 新增文件载荷
+        name: string;
+        type: string;
+        data: string;   // Base64 编码
+    }[];
+}
+```
+
 
 ---
 

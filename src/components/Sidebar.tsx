@@ -86,31 +86,34 @@ export function Sidebar({
             <div className={cn(
                 "absolute left-0 top-0 h-full w-[240px] border-r flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]",
                 isCollapsed ? "-translate-x-full" : "translate-x-0",
-                // Glassmorphism background - Manual application of macos-panel effect without rounded corners
-                "macos-vibrancy rounded-r-[12px] shadow-2xl"
+                isCollapsed ? "-translate-x-full" : "translate-x-0",
+                // Sidebar Bg: Light=White / Dark=Gray-950
+                // Sidebar Border: Light=Gray-200 / Dark=White/10
+                "bg-white dark:bg-gray-950 border-r border-gray-200 dark:border-white/10",
+                "shadow-2xl"
             )}>
 
                 {/* Top Section - Header with Controls */}
                 <div className={cn(
-                    "h-[40px] min-h-[40px] w-full flex items-center justify-between px-3 border-b border-white/[0.05]",
-                    "bg-white/[0.05]"
+                    "h-[40px] min-h-[40px] w-full flex items-center justify-between px-3 border-b border-gray-100 dark:border-white/[0.05]",
+                    "bg-gray-50/50 dark:bg-white/[0.02]"
                 )}>
                     {/* Left: Settings Button */}
                     <button
                         onClick={onOpenSettings}
-                        className="btn-icon w-7 h-7 flex items-center justify-center rounded-md hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                        className="btn-icon w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                         title="设置"
                     >
-                        <SettingsIcon className="w-4 h-4 opacity-70" />
+                        <SettingsIcon className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                     </button>
 
                     {/* Right: Collapse Button */}
                     <button
                         onClick={onToggleCollapse}
-                        className="btn-icon w-7 h-7 flex items-center justify-center rounded-md hover:bg-black/5 dark:hover:bg-white/10 transition-colors"
+                        className="btn-icon w-7 h-7 flex items-center justify-center rounded-md hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
                         title="收起侧边栏"
                     >
-                        <PanelLeft className="w-4 h-4 opacity-70" />
+                        <PanelLeft className="w-4 h-4 text-gray-500 dark:text-gray-400" />
                     </button>
                 </div>
 
@@ -128,8 +131,8 @@ export function Sidebar({
                                 className={cn(
                                     "w-full px-3 py-2 mx-0 justify-start transition-all duration-200 group relative flex-shrink-0 text-[13px] flex items-center gap-3 rounded-[8px]",
                                     isActive
-                                        ? "bg-[#007AFF]/20 text-black dark:text-white shadow-[inset_0_0_12px_rgba(0,122,255,0.15)] ring-1 ring-[#007AFF]/30" // Active custom style with inner glow
-                                        : "hover:bg-black/5 dark:hover:bg-white/5 text-[#555] dark:text-[#999] hover:text-black dark:hover:text-white"
+                                        ? "bg-blue-50 text-blue-600 dark:bg-[#007AFF]/20 dark:text-white shadow-sm dark:shadow-[inset_0_0_12px_rgba(0,122,255,0.15)] ring-1 ring-blue-500/20 dark:ring-[#007AFF]/30"
+                                        : "hover:bg-gray-100 dark:hover:bg-white/5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
                                 )}
                                 title={adapter.name}
                             >
@@ -137,8 +140,8 @@ export function Sidebar({
                                 <div className={cn(
                                     "w-5 h-5 flex items-center justify-center transition-colors rounded-[5px]",
                                     // Icon style update
-                                    "border border-current opacity-70",
-                                    isActive ? "text-[#007AFF] border-[#007AFF]" : "text-[#666] dark:text-[#888] border-[#666]/30 dark:border-[#888]/30"
+                                    "border border-current opacity-90",
+                                    isActive ? "text-blue-500 border-blue-500" : "text-gray-400 border-gray-300 dark:text-gray-500 dark:border-gray-600"
                                 )}>
                                     <span className="text-[10px] font-medium opacity-90">{adapter.name.substring(0, 1)}</span>
                                 </div>
