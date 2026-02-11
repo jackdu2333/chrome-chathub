@@ -1,4 +1,4 @@
-# ChatHub (macOS Style)
+# JackDu ChatHub
 
 This is a Chrome extension that provides a unified chat interface for various AI services, designed with a macOS Ventura/Sonoma aesthetic.
 

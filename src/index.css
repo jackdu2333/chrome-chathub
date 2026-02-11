@@ -12,6 +12,24 @@
 }
 
 @layer components {
+  .glass-panel {
+    @apply bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl border border-white/20 dark:border-white/5 shadow-xl;
+  }
+
+  /* Utility to hide elements visually but keep them in DOM (prevent iframe reload) */
+  .hidden-visually {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+    visibility: hidden !important;
+  }
+
   .macos-panel {
     @apply bg-white/70 dark:bg-[#1d1d1f]/60 backdrop-blur-[20px] backdrop-saturate-[180%] border border-black/5 dark:border-white/[0.08] rounded-xl shadow-mac-panel;
   }

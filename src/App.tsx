@@ -3,35 +3,29 @@ import { MessageSquare, PanelLeft } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
-  KeyboardSensor,
-  PointerSensor,
-  useSensor,
-  useSensors,
   DragOverlay,
-  DragStartEvent,
-  DragEndEvent,
 } from '@dnd-kit/core';
 import {
   SortableContext,
-  sortableKeyboardCoordinates,
   rectSortingStrategy,
 } from '@dnd-kit/sortable';
 
 import { Sidebar } from './components/Sidebar';
 import { ChatFrame } from './components/ChatFrame';
-import { SortableChatFrame } from './components/SortableChatFrame'; // Import the new component
+import { SortableChatFrame } from './components/SortableChatFrame';
 import { UnifiedInput } from './components/UnifiedInput';
 import { PromptLibrary } from './components/PromptLibrary';
 import { Settings } from './components/Settings';
 import { useStore } from './store';
 import { cn } from './lib/utils';
-import type { ChatBot } from './types'; // Import ChatBot type here
+import type { ChatBot } from './types';
+import { useBotDragAndDrop } from './hooks/useBotDragAndDrop';
+import { useGridLayout } from './hooks/useGridLayout';
 
 function App() {
   const activeBots = useStore((state) => state.activeBots);
   const availableAdapters = useStore((state) => state.availableAdapters);
   const toggleBot = useStore((state) => state.toggleBot);
-  const reorderBots = useStore((state) => state.reorderBots); // Get reorder action
   const addCustomAdapter = useStore((state) => state.addCustomAdapter);
   const removeCustomAdapter = useStore((state) => state.removeCustomAdapter);
   const updateCustomAdapter = useStore((state) => state.updateCustomAdapter);
@@ -41,64 +35,11 @@ function App() {
   const [focusedBotId, setFocusedBotId] = useState<string | null>(null);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
-  const [activeDragId, setActiveDragId] = useState<string | null>(null);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 10, // 移动 10px 后才算拖拽，防止普通点击被误触发
-      },
-    }),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    })
-  );
-
-  const handleDragStart = (event: DragStartEvent) => {
-    setActiveDragId(event.active.id as string);
-    // Fix iframe interference by adding a class to body
-    document.body.classList.add('is-dragging');
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveDragId(null);
-    document.body.classList.remove('is-dragging');
-
-    if (over && active.id !== over.id) {
-      const oldIndex = activeBots.findIndex((bot) => bot.instanceId === active.id);
-      const newIndex = activeBots.findIndex((bot) => bot.instanceId === over.id);
-      reorderBots(oldIndex, newIndex);
-    }
-  };
+  const { sensors, activeDragId, handleDragStart, handleDragEnd } = useBotDragAndDrop();
+  const { getGridClass } = useGridLayout();
 
   const handleToggleBot = (id: string) => {
     toggleBot(id);
-  };
-
-
-  // Grid / Layout Calculation
-  // Responsive behavior:
-  // - Mobile/Small: 1 column
-  // - Medium: 2 columns (Field/Grid)
-  // - Large: 3+ columns (Side-by-side)
-  const getGridClass = () => {
-    const count = activeBots.length;
-    if (count <= 1) return "grid-cols-1";
-
-    // For 2 bots: split screen (2 cols) usually
-    if (count === 2) return "grid-cols-1 md:grid-cols-2";
-
-    // For 3 bots: 
-    // Small: 1 col
-    // Medium: 2 cols (2 + 1) -> "田字格" style
-    // Large: 3 cols (1 + 1 + 1) -> "纵向排列" (Side by side)
-    if (count === 3) return "grid-cols-1 md:grid-cols-2 lg:grid-cols-3";
-
-    // For 4+ bots:
-    // Medium: 2 cols (2x2)
-    // Large: 3 or 4 cols
-    return "grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4";
   };
 
   // Auto-hide Sidebar Logic
@@ -120,12 +61,6 @@ function App() {
     }
   };
 
-  // Clear timer if manually toggled or component unmounts
-  // We can wrap the toggle in a handler if we want to be precise,
-  // but just clearing on enter/leave is the main requirement.
-
-  // const isDarkMode = useStore((state) => state.isDarkMode); // Removed usage for direct Tailwind dark: classes
-
   return (
     <div
       className={cn(
@@ -133,7 +68,6 @@ function App() {
         // Global Bg: Light=Gray-100 / Dark=Gray-950
         "bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-gray-100"
       )}
-    // Removed inline style to rely on Tailwind classes
     >
       {/* 1. Sidebar */}
       <Sidebar
@@ -169,7 +103,9 @@ function App() {
               <div
                 className={cn(
                   "grid gap-1 h-full transition-all duration-300 [grid-auto-rows:1fr] p-2 pb-0",
-                  focusedBotId ? "grid-cols-1" : getGridClass()
+                  // Always use the calculated grid class.
+                  // In focus mode, we manipulate the children to span full, instead of changing the parent grid.
+                  getGridClass()
                 )}
               >
                 <SortableContext
@@ -177,35 +113,36 @@ function App() {
                   strategy={rectSortingStrategy}
                 >
                   {activeBots.map((bot) => {
-                    // If focused, only show the focused bot
-                    if (focusedBotId && focusedBotId !== bot.id) return null;
+                    const isFocused = focusedBotId === bot.id;
+                    const isHidden = focusedBotId && !isFocused;
 
-                    // If focused, render regular ChatFrame (no drag)
-                    if (focusedBotId) {
-                      return (
-                        <ChatFrame
-                          key={bot.instanceId}
-                          bot={bot}
-                          isFocused={true}
-                          onToggleFocus={() => setFocusedBotId(null)}
-                          onRemove={() => handleToggleBot(bot.id)}
-                          className={cn(
-                            "transition-all duration-300 min-h-0",
-                            "h-full"
-                          )}
-                        />
-                      );
-                    }
-
-                    // Otherwise render SortableChatFrame
                     return (
-                      <SortableChatFrame
+                      <div
                         key={bot.instanceId}
-                        bot={bot}
-                        isFocused={false}
-                        onToggleFocus={() => setFocusedBotId(bot.id)}
-                        onRemove={() => handleToggleBot(bot.id)}
-                      />
+                        className={cn(
+                          // CRITICAL: No layout changes at all to prevent iframe resize/reload
+                          "min-h-0 min-w-0",
+
+                          // If focused: just raise z-index above overlay, no size change
+                          isFocused ? "relative z-40" : "",
+
+                          // If hidden: use visibility:hidden to keep in grid flow (NOT hidden-visually which uses position:absolute)
+                          isHidden ? "invisible" : ""
+                        )}
+                      >
+                        {/* 
+                            ALWAYS render SortableChatFrame to preserve component tree and iframe state.
+                            We will handle "notify SortableChatFrame to disable drag" via props if needed,
+                            or simply rely on key persistency.
+                            disable the drag listeners INSIDE it.
+                         */}
+                        <SortableChatFrame
+                          bot={bot}
+                          isFocused={isFocused}
+                          onToggleFocus={() => setFocusedBotId(isFocused ? null : bot.id)}
+                          onRemove={() => handleToggleBot(bot.id)}
+                        />
+                      </div>
                     );
                   })}
                 </SortableContext>
@@ -282,10 +219,10 @@ function App() {
         </button>
       </div>
 
-      {/* Overlay for Focus Mode (Background dim) */}
+      {/* Overlay for Focus Mode (Background dim) - NO backdrop-blur to prevent blurry text */}
       {focusedBotId && activeBots.length > 1 && (
         <div
-          className="fixed inset-0 bg-black/60 backdrop-blur-sm z-30 pointer-events-none transition-opacity duration-300"
+          className="fixed inset-0 bg-black/40 z-30 pointer-events-none transition-opacity duration-300"
           aria-hidden="true"
         />
       )}

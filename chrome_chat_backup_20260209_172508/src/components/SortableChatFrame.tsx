@@ -11,7 +11,6 @@ interface SortableChatFrameProps {
 }
 
 export function SortableChatFrame({ bot, isFocused, onToggleFocus, onRemove }: SortableChatFrameProps) {
-
     const {
         attributes,
         listeners,
@@ -39,10 +38,6 @@ export function SortableChatFrame({ bot, isFocused, onToggleFocus, onRemove }: S
             ref={setNodeRef}
             style={{ ...style, height: '100%', width: '100%' }} // Enforce 100% dimensions
             {...attributes}
-            // Only attach listeners if NOT focused. This allows text selection in header when focused.
-            // But wait, the listeners are on the header handle usually.
-            // If main drag is disabled, we should probably disable useSortable?
-            // dnd-kit `useSortable` has `disabled` prop.
             className="flex flex-col min-h-0 min-w-0 touch-none outline-none"
         >
             <ChatFrame
@@ -50,8 +45,8 @@ export function SortableChatFrame({ bot, isFocused, onToggleFocus, onRemove }: S
                 isFocused={isFocused}
                 onToggleFocus={onToggleFocus}
                 onRemove={onRemove}
-                // Pass listeners only if NOT focused
-                dragListeners={!isFocused ? listeners : undefined}
+                // Pass listeners only to be attached to the drag handle (Header)
+                dragListeners={listeners}
                 isDragging={isDragging}
             />
         </div>
