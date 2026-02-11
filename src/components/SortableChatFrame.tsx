@@ -19,12 +19,17 @@ export function SortableChatFrame({ bot, isFocused, onToggleFocus, onRemove }: S
         transform,
         transition,
         isDragging
-    } = useSortable({ id: bot.instanceId });
+    } = useSortable({
+        id: bot.instanceId,
+        disabled: isFocused // CRITICAL: Disable DnD when focused to prevent transform/layout interference
+    });
 
     // Apply transform and transition to the wrapper
     const style = {
         // use Translate instead of Transform to avoid scaling issues
-        transform: CSS.Translate.toString(transform),
+        // When focused, we MUST NOT apply ANY transform, as it creates a new stacking context
+        // which breaks fixed positioning (popup becomes relative to this wrapper instead of viewport)
+        transform: isFocused ? undefined : CSS.Translate.toString(transform),
         transition,
         opacity: isDragging ? 0.4 : 1, // Visual feedback for original item leaving
         zIndex: isDragging ? 50 : 'auto', // Ensure dragging item is above others

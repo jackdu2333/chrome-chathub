@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { MessageSquare, PanelLeft } from 'lucide-react';
 import {
   DndContext,
@@ -20,7 +20,7 @@ import { useStore } from './store';
 import { cn } from './lib/utils';
 import type { ChatBot } from './types';
 import { useBotDragAndDrop } from './hooks/useBotDragAndDrop';
-import { useGridLayout } from './hooks/useGridLayout';
+
 
 function App() {
   const activeBots = useStore((state) => state.activeBots);
@@ -36,7 +36,6 @@ function App() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
 
   const { sensors, activeDragId, handleDragStart, handleDragEnd } = useBotDragAndDrop();
-  const { getGridClass } = useGridLayout();
 
   const handleToggleBot = (id: string) => {
     toggleBot(id);
@@ -61,12 +60,36 @@ function App() {
     }
   };
 
+  // Sync sidebar state to body class for CSS variable calculations
+  useEffect(() => {
+    if (isSidebarCollapsed) {
+      document.body.classList.add('sidebar-collapsed');
+    } else {
+      document.body.classList.remove('sidebar-collapsed');
+    }
+  }, [isSidebarCollapsed]);
+
+  // Auto-collapse sidebar when 4+ bots are active
+  useEffect(() => {
+    if (activeBots.length >= 4) {
+      setIsSidebarCollapsed(true);
+    }
+  }, [activeBots.length]);
+
+  const getDynamicGridClass = () => {
+    const count = activeBots.length;
+    if (count <= 1) return "chat-grid-cols-1";
+    if (count === 2) return "chat-grid-cols-2";
+    if (count === 3) return "chat-grid-cols-3";
+    return "chat-grid-cols-4"; // 4 or more
+  };
+
   return (
     <div
       className={cn(
         "flex h-screen w-screen overflow-hidden font-system transition-colors duration-300",
-        // Global Bg: Light=Gray-100 / Dark=Gray-950
-        "bg-gray-100 dark:bg-gray-950 text-gray-900 dark:text-gray-100"
+        // Global Bg: Transparent to reveal body's atmospheric gradient
+        "bg-transparent text-gray-900 dark:text-gray-100"
       )}
     >
       {/* 1. Sidebar */}
@@ -84,7 +107,8 @@ function App() {
       {/* 2. Main Content - Split into Chat Area + Input Bar */}
       <div className="flex-1 flex flex-col h-full relative">
         {/* 2a. Chat Grid Container (grows to fill available space) */}
-        <div className="flex-1 overflow-hidden px-4 pt-1.5 pb-[82px]">
+        <div className="flex-1 overflow-hidden px-0 pt-0 pb-[72px]">
+          {/* Removed px-4 pt-1.5 to let grid handle padding via .chat-grid-container */}
           {activeBots.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center text-gray-500 space-y-4">
               <div className="w-16 h-16 rounded-2xl bg-gray-200 dark:bg-gray-800 flex items-center justify-center">
@@ -102,10 +126,8 @@ function App() {
             >
               <div
                 className={cn(
-                  "grid gap-1 h-full transition-all duration-300 [grid-auto-rows:1fr] p-2 pb-0",
-                  // Always use the calculated grid class.
-                  // In focus mode, we manipulate the children to span full, instead of changing the parent grid.
-                  getGridClass()
+                  "chat-grid-container",
+                  getDynamicGridClass()
                 )}
               >
                 <SortableContext
@@ -120,9 +142,7 @@ function App() {
                       <div
                         key={bot.instanceId}
                         className={cn(
-                          // CRITICAL: No layout changes at all to prevent iframe resize/reload
-                          "min-h-0 min-w-0",
-
+                          "chat-grid-item min-h-0 min-w-0",
                           // If focused: just raise z-index above overlay, no size change
                           isFocused ? "relative z-40" : "",
 
@@ -179,7 +199,7 @@ function App() {
       <button
         onClick={() => setIsPromptsOpen(!isPromptsOpen)}
         className={cn(
-          "fixed bottom-3 right-6 z-50 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 shadow-xl hover:scale-105 active:scale-95",
+          "fixed bottom-[9px] right-6 z-50 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 shadow-xl hover:scale-105 active:scale-95",
           "bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl",
           "border border-gray-200 dark:border-white/10",
           isPromptsOpen ? "text-blue-500 bg-white dark:bg-gray-700" : "text-gray-600 dark:text-gray-300"
@@ -202,7 +222,7 @@ function App() {
       {/* Floating Sidebar Toggle (Recovery for users who expect a button) */}
       <div
         className={cn(
-          "fixed bottom-3 left-6 z-50 transition-all duration-300",
+          "fixed bottom-[9px] left-6 z-50 transition-all duration-300",
           isSidebarCollapsed ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4 pointer-events-none"
         )}
       >

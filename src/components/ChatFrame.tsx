@@ -45,7 +45,7 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, className, 
                     "border border-gray-200/50 dark:border-white/10",
 
                     isFocused
-                        ? "fixed inset-4 z-40 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10" // Pop out
+                        ? "fixed top-4 left-4 right-4 bottom-[88px] z-40 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10" // Pop out with safe bottom zone
                         : "absolute inset-0 w-full h-full rounded-2xl hover:shadow-lg dark:hover:shadow-none shadow-md", // Stay in anchor
 
                     isDragging && "shadow-2xl ring-2 ring-blue-500/50 scale-[1.02] rotate-1 z-50 cursor-grabbing"
