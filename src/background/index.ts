@@ -6,7 +6,8 @@ const DEFAULT_AI_DOMAINS = [
     "gemini.google.com",
     "claude.ai",
     "copilot.microsoft.com",
-    "chat.openai.com"
+    "chat.openai.com",
+    "web.tabbitbrowser.com"
 ];
 
 // Extract domain from URL

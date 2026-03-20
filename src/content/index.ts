@@ -463,39 +463,60 @@ async function setNativeValue(element: HTMLElement, value: string) {
             tracker.setValue(lastValue);
         }
 
-    } else if (element.isContentEditable) {
-        // For contenteditable (Qianwen, Claude, Yiyan, etc)
-        // STRATEGY: Paste Simulation (More robust than direct innerText/input events)
+    } else if (element.isContentEditable || element.querySelector('[contenteditable="true"]')) {
+        // Find the actual editable element if a wrapper was targeted
+        const editableElement = element.isContentEditable ? element : (element.querySelector('[contenteditable="true"]') as HTMLElement);
 
-        console.log('[ChatHub Content] 📋 Using Paste Simulation strategy');
-        element.focus();
+        console.log('[ChatHub Content] 📋 Using ExecCommand/Paste Simulation strategy');
+        editableElement.focus();
 
-        // 1. Dispatch Paste Event
-        const dataTransfer = new DataTransfer();
-        dataTransfer.setData('text/plain', value);
-        const pasteEvent = new ClipboardEvent('paste', {
-            clipboardData: dataTransfer,
-            bubbles: true,
-            cancelable: true,
-            composed: true,
-        });
-        element.dispatchEvent(pasteEvent);
+        // New Strategy: execCommand is the most reliable way to insert text in contenteditable for all modern frameworks
+        // Select all existing content
+        const selection = window.getSelection();
+        const range = document.createRange();
+        range.selectNodeContents(editableElement);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
 
-        // 2. Request a fallback/enforcement check
-        await new Promise(r => setTimeout(r, 50));
-
-        // 3. Force set innerText if paste didn't work smoothly or to be sure
-        if (element.innerText !== value) {
-            console.log('[ChatHub Content] ⚠️ Paste event might have been ignored, forcing innerText');
-            element.innerText = value;
+        // Try direct replacement via command
+        const success = document.execCommand('insertText', false, value);
+        
+        if (!success) {
+            console.log('[ChatHub Content] ⚠️ execCommand failed, falling back to Paste event');
+            const dataTransfer = new DataTransfer();
+            dataTransfer.setData('text/plain', value);
+            const pasteEvent = new ClipboardEvent('paste', {
+                clipboardData: dataTransfer,
+                bubbles: true,
+                cancelable: true,
+                composed: true,
+            });
+            editableElement.dispatchEvent(pasteEvent);
+            
+            // Wait for paste to process
+            await new Promise(r => setTimeout(r, 50));
+            
+            // Do NOT forcefully wipe innerText because it breaks ProseMirror/Lexical
+            if (!editableElement.innerText.includes(value.trim())) {
+                console.log('[ChatHub Content] ⚠️ Paste seemingly ignored. Appending via DOM (risky for Prosemirror)');
+                // If we must fallback, do it safer
+                if (editableElement.querySelector('p')) {
+                    const p = editableElement.querySelector('p');
+                    if (p) p.innerText = value;
+                } else {
+                    editableElement.innerText = value;
+                }
+            }
         }
 
         // 4. Trigger standard events to notify framework
-        element.dispatchEvent(new InputEvent('input', {
+        editableElement.dispatchEvent(new InputEvent('input', {
             bubbles: true,
             inputType: 'insertText',
             data: value
         }));
+
+
 
         element.dispatchEvent(new Event('change', { bubbles: true }));
     }

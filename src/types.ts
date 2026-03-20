@@ -53,10 +53,18 @@ export interface StorageData {
 export const DEFAULT_ADAPTERS: ServiceAdapter[] = [
     {
         id: 'chatgpt',
-        name: 'ChatGPT',
+        name: 'gpt',
+        url: 'https://web.tabbitbrowser.com/newtab',
+        icon: 'Bot',
+        inputSelector: '.ProseMirror, [data-placeholder="输入关键词搜索"]',
+        submitSelector: 'button[label="ChatSendButton"]'
+    },
+    {
+        id: 'openai',
+        name: 'OpenAI (ChatGPT)',
         url: 'https://chatgpt.com',
         icon: 'Bot',
-        inputSelector: 'textarea#prompt-textarea, #prompt-textarea',
+        inputSelector: '#prompt-textarea',
         submitSelector: 'button[data-testid="send-button"]'
     },
     {
