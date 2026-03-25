@@ -1,4 +1,4 @@
-import { AdapterPreference, ChatBot, Prompt, ServiceAdapter } from '../types';
+import { AdapterPreference, ChatBot, ServiceAdapter } from '../types';
 
 export interface BotSlice {
     activeBots: ChatBot[];
@@ -30,17 +30,9 @@ export interface UISlice {
 
 export interface SettingsSlice {
     isSyncEnabled: boolean;
-    setSyncEnabled: (enabled: boolean) => void;
-}
-
-export interface PromptSlice {
-    prompts: Prompt[];
     draftContent: string;
+    setSyncEnabled: (enabled: boolean) => void;
     setDraftContent: (content: string) => void;
-    addPrompt: (prompt: Prompt) => void;
-    updatePrompt: (id: string, updates: Partial<Prompt>) => void;
-    deletePrompt: (id: string) => void;
-    loadPrompts: () => Promise<void>;
 }
 
-export type AppState = BotSlice & UISlice & SettingsSlice & PromptSlice;
+export type AppState = BotSlice & UISlice & SettingsSlice;

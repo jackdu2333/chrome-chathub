@@ -1,26 +1,31 @@
-import { KeyboardEvent, useState, useRef, ClipboardEvent } from 'react';
-import { Send, Link2, Link2Off, Plus, Paperclip, X, FileText, Image as ImageIcon } from 'lucide-react';
+import { ChangeEvent, ClipboardEvent, KeyboardEvent, useEffect, useRef, useState } from 'react';
+import { FileText, Image as ImageIcon, Link2, Link2Off, Paperclip, PanelLeft, Plus, Send, X } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useStore } from '../store';
-import { broadcastMessage } from '../lib/broadcast';
+import { sendMessageBatch } from '../runtime/frameBridge';
 
 interface UnifiedInputProps {
-    // onTogglePrompts removed
+    isModelDrawerOpen: boolean;
+    onToggleModelDrawer: () => void;
 }
 
-export function UnifiedInput({ }: UnifiedInputProps) {
+export function UnifiedInput({
+    isModelDrawerOpen,
+    onToggleModelDrawer,
+}: UnifiedInputProps) {
     const { isSyncEnabled, setSyncEnabled, reloadAllBots, draftContent, setDraftContent, activeBots } = useStore();
     const [selectedFiles, setSelectedFiles] = useState<{ name: string; type: string; data: string }[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
     const [isFocused, setIsFocused] = useState(false);
 
     const windowCount = activeBots.length;
 
-    const handleSend = () => {
+    const handleSend = async () => {
         if (!draftContent.trim() && selectedFiles.length === 0) return;
 
-        // Broadcast to all active iframes
-        broadcastMessage('USER_MESSAGE', {
+        await sendMessageBatch({
+            instanceIds: activeBots.map(bot => bot.instanceId),
             text: draftContent,
             autoSubmit: isSyncEnabled,
             files: selectedFiles
@@ -35,7 +40,7 @@ export function UnifiedInput({ }: UnifiedInputProps) {
 
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
-            handleSend();
+            void handleSend();
         }
     };
 
@@ -80,144 +85,160 @@ export function UnifiedInput({ }: UnifiedInputProps) {
         setSelectedFiles(prev => prev.filter((_, i) => i !== index));
     };
 
-    /* 
-       Refactored Layout: 
-       Wrapped in .input-safe-container to handle positioning constrained by sidebar and right buttons.
-    */
+    const resizeTextarea = (element?: HTMLTextAreaElement | null) => {
+        const target = element ?? textareaRef.current;
+        if (!target) return;
+
+        target.style.height = '0px';
+        target.style.height = `${Math.min(target.scrollHeight, 88)}px`;
+    };
+
+    const handleDraftChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
+        setDraftContent(e.target.value);
+        resizeTextarea(e.target);
+    };
+
+    useEffect(() => {
+        resizeTextarea();
+    }, [draftContent]);
+
     return (
         <div className="input-safe-container">
             <div
                 className={cn(
-                    // Inner Capsule Class
                     "input-capsule",
-
-                    // Visual Style & Layout
-                    "min-h-[54px] rounded-[24px] px-4 py-3 gap-4",
-
-                    // Dynamic Sizing Logic
-                    // Zen Mode: Fixed 800px width (centered by flex container)
-                    // Panorama Mode: 100% width (fills safe area)
-                    windowCount <= 1 ? "w-[800px]" : "w-full",
-
-                    // Visual Style: Linear Glass
-                    // Dark mode default requested: bg-[#0f0f10cc]
-                    "bg-[#0f0f10cc] backdrop-blur-[20px] backdrop-saturate-150",
-                    "border border-white/[0.08] shadow-[0_12px_40px_rgba(0,0,0,0.4)]",
-
-                    // Active Border Glow
-                    isFocused && "border-blue-500/30 ring-1 ring-blue-500/30"
+                    windowCount <= 1 ? "max-w-[1120px]" : "w-full"
                 )}
             >
-                {/* Hidden File Input */}
-                <input
-                    type="file"
-                    multiple
-                    ref={fileInputRef}
-                    className="hidden"
-                    onChange={handleFileSelect}
-                />
-
-                {/* 👈 Left Zone: Sync | Attach | Divider */}
-                <div className="flex items-center gap-2 mb-0.5 shrink-0">
-                    {/* Sync Toggle */}
-                    <button
-                        onClick={() => setSyncEnabled(!isSyncEnabled)}
-                        className={cn(
-                            "btn-icon w-9 h-9 flex items-center justify-center rounded-lg transition-all duration-300",
-                            isSyncEnabled
-                                ? "text-[#3b82f6] bg-blue-500/10 hover:bg-blue-500/20 shadow-[0_0_10px_rgba(59,130,246,0.2)]"
-                                : "text-gray-500 hover:text-gray-300 hover:bg-white/5"
-                        )}
-                        title={isSyncEnabled ? "同步发送开启" : "同步发送关闭"}
-                    >
-                        {isSyncEnabled ? <Link2 className="w-5 h-5" /> : <Link2Off className="w-5 h-5 opacity-70" />}
-                    </button>
-
-                    {/* Attach Button */}
-                    <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="btn-icon w-9 h-9 flex items-center justify-center rounded-lg text-gray-500 hover:text-white hover:bg-white/5 transition-all"
-                        title="上传文件"
-                    >
-                        <Paperclip className="w-5 h-5" />
-                    </button>
-
-                    {/* Divider */}
-                    <div className="w-[1px] h-5 bg-white/10 mx-1" />
-                </div>
-
-                {/* 👉 Middle Zone: Input | Send */}
                 <div className={cn(
-                    "flex-1 flex flex-col justify-center transition-all duration-200 min-h-[38px] relative",
+                    "input-capsule-shell",
+                    isFocused && "border-sky-400/25 shadow-[0_18px_42px_rgba(9,45,99,0.2)]"
                 )}>
-                    {/* File Previews */}
-                    {selectedFiles.length > 0 && (
-                        <div className="flex flex-wrap gap-2 pb-2">
-                            {selectedFiles.map((file, index) => (
-                                <div key={index} className={cn(
-                                    "flex items-center gap-2 pl-2 pr-1 py-1 rounded-lg border max-w-[200px]",
-                                    "bg-white/5 border-white/10"
-                                )}>
-                                    <div className="flex-shrink-0 text-blue-500">
-                                        {file.type.startsWith('image/') ? <ImageIcon className="w-4 h-4" /> : <FileText className="w-4 h-4" />}
-                                    </div>
-                                    <span className="text-xs truncate text-gray-300">{file.name}</span>
-                                    <button
-                                        onClick={() => handleRemoveFile(index)}
-                                        className="p-0.5 hover:bg-white/10 rounded-full transition-colors text-gray-400 hover:text-white"
+                    <input
+                        type="file"
+                        multiple
+                        ref={fileInputRef}
+                        className="hidden"
+                        onChange={handleFileSelect}
+                    />
+
+                    <div className="flex flex-col gap-2 px-2.5 py-2.5">
+                        {selectedFiles.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                                {selectedFiles.map((file, index) => (
+                                    <div
+                                        key={index}
+                                        className="flex max-w-[220px] items-center gap-2 rounded-full border border-white/[0.07] bg-white/[0.045] px-3 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
                                     >
-                                        <X className="w-3 h-3" />
-                                    </button>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-
-                    <div className="flex items-end gap-2">
-                        <textarea
-                            value={draftContent}
-                            onChange={(e) => setDraftContent(e.target.value)}
-                            onKeyDown={handleKeyDown}
-                            onPaste={handlePaste}
-                            onFocus={() => setIsFocused(true)}
-                            onBlur={() => setIsFocused(false)}
-                            placeholder="输入消息..."
-                            className={cn(
-                                "flex-1 bg-transparent border-none focus:ring-0 resize-none py-1.5 outline-none text-[16px] font-normal leading-relaxed",
-                                "text-white placeholder-white/20",
-                                "[&::-webkit-scrollbar]:hidden"
-                            )}
-                            style={{
-                                scrollbarWidth: 'none',
-                                height: 'auto',
-                                minHeight: '28px',
-                                maxHeight: '200px'
-                            }}
-                            rows={1}
-                        />
-
-                        {/* Send Button (Inside Middle Zone, next to input as standard UI usually puts it) */}
-                        {(draftContent.trim() || selectedFiles.length > 0) && (
-                            <button
-                                onClick={handleSend}
-                                className="bg-blue-600 hover:bg-blue-500 text-white rounded-xl p-2 shadow-lg shadow-blue-500/20 transition-all hover:scale-105 active:scale-95 shrink-0"
-                            >
-                                <Send className="w-4 h-4" />
-                            </button>
+                                        <div className="flex-shrink-0 text-sky-300">
+                                            {file.type.startsWith('image/') ? <ImageIcon className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
+                                        </div>
+                                        <span className="truncate text-sm text-slate-200">{file.name}</span>
+                                        <button
+                                            onClick={() => handleRemoveFile(index)}
+                                            className="rounded-full p-1 text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white"
+                                        >
+                                            <X className="h-3 w-3" />
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
                         )}
-                    </div>
-                </div>
 
-                {/* 👉 Right Zone: New Chat */}
-                <div className="flex items-center mb-0.5 shrink-0 pl-2">
-                    <button
-                        onClick={handleNewChat}
-                        className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm text-gray-500 hover:text-white hover:bg-white/5 transition-all"
-                        title="开启新对话"
-                    >
-                        <Plus className="w-5 h-5" />
-                        <span className="hidden sm:inline">新对话</span>
-                    </button>
+                        <div className="flex items-center gap-2">
+                            <div className="flex shrink-0 items-center gap-1 rounded-[14px] border border-white/[0.07] bg-[linear-gradient(180deg,rgba(255,255,255,0.038),rgba(255,255,255,0.018))] px-1 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
+                                <button
+                                    onClick={onToggleModelDrawer}
+                                    className={cn(
+                                        "btn-icon flex h-9 items-center justify-center gap-2 px-3 text-slate-200",
+                                        isModelDrawerOpen && "border-white/[0.05] bg-[rgba(92,127,184,0.18)] text-[#d8e5ff]"
+                                    )}
+                                    title="模型栏"
+                                >
+                                    <PanelLeft className="h-4 w-4" />
+                                    <span className="hidden lg:inline text-[13px]">模型</span>
+                                </button>
+
+                                <button
+                                    onClick={() => setSyncEnabled(!isSyncEnabled)}
+                                    className={cn(
+                                        "btn-icon flex h-9 items-center justify-center gap-2 px-3",
+                                        isSyncEnabled
+                                            ? "border-white/[0.05] bg-[rgba(92,127,184,0.18)] text-[#d8e5ff]"
+                                            : "text-slate-400"
+                                    )}
+                                    title={isSyncEnabled ? "同步发送开启" : "同步发送关闭"}
+                                >
+                                    {isSyncEnabled ? <Link2 className="h-4.5 w-4.5" /> : <Link2Off className="h-4.5 w-4.5" />}
+                                    <span className="hidden xl:inline text-[13px]">{isSyncEnabled ? '同步' : '草稿'}</span>
+                                </button>
+
+                                <button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    className="btn-icon flex h-9 w-9 items-center justify-center text-slate-300"
+                                    title="上传文件"
+                                >
+                                    <Paperclip className="h-4.5 w-4.5" />
+                                </button>
+                            </div>
+
+                            <div
+                                className={cn(
+                                    "flex min-w-0 flex-1 items-center gap-3 rounded-[14px] border px-3 py-2 transition-all duration-300",
+                                    "border-white/[0.07] bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
+                                    isFocused && "border-[rgba(121,154,207,0.22)] bg-[linear-gradient(180deg,rgba(87,119,174,0.08),rgba(255,255,255,0.028))]"
+                                )}
+                            >
+                                <textarea
+                                    ref={textareaRef}
+                                    value={draftContent}
+                                    onChange={handleDraftChange}
+                                    onKeyDown={handleKeyDown}
+                                    onPaste={handlePaste}
+                                    onFocus={() => setIsFocused(true)}
+                                    onBlur={() => setIsFocused(false)}
+                                    placeholder={isSyncEnabled ? "把消息发往所有窗口..." : "先写草稿，按 Enter 注入到当前窗口..."}
+                                    className={cn(
+                                        "min-w-0 flex-1 resize-none border-none bg-transparent outline-none focus:ring-0",
+                                        "text-[15px] leading-6 text-white placeholder:text-slate-500",
+                                        "[&::-webkit-scrollbar]:hidden"
+                                    )}
+                                    style={{
+                                        scrollbarWidth: 'none',
+                                        minHeight: '24px',
+                                        maxHeight: '88px',
+                                        height: '24px'
+                                    }}
+                                    rows={1}
+                                />
+                                <span className="hidden lg:inline shrink-0 rounded-full border border-white/[0.05] bg-white/[0.025] px-2.5 py-1 text-[11px] font-medium text-slate-400">
+                                    {windowCount} 窗口
+                                </span>
+                            </div>
+
+                            <div className="flex shrink-0 items-center gap-2">
+                                <button
+                                    onClick={handleNewChat}
+                                    className="btn-secondary h-10 rounded-full px-4 text-slate-200"
+                                    title="开启新对话"
+                                >
+                                    <Plus className="h-4 w-4" />
+                                    <span className="hidden md:inline">新对话</span>
+                                </button>
+
+                                <button
+                                    onClick={() => { void handleSend(); }}
+                                    disabled={!draftContent.trim() && selectedFiles.length === 0}
+                                    className={cn(
+                                        "btn-primary flex h-10 min-w-[48px] items-center justify-center rounded-[14px] px-4 shrink-0",
+                                        !draftContent.trim() && selectedFiles.length === 0 && "cursor-not-allowed opacity-50"
+                                    )}
+                                >
+                                    <Send className="h-4.5 w-4.5" />
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>

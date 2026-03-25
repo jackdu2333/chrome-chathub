@@ -1,11 +1,34 @@
-// ... imports
-export interface Prompt {
-    id: string;
-    title: string;
-    content: string;
-    category: string;
-    isSystem?: boolean; // Default prompts cannot be deleted?
-    lastUsed?: number;
+export type InputMethod = 'default' | 'text' | 'input' | 'paste' | 'pasteAndText';
+export type SubmitMode = 'auto' | 'button' | 'enter';
+export type SubmitVerificationMode = 'strict' | 'optimistic' | 'none';
+export type UploadStrategy =
+    | 'paste-first'
+    | 'input-first'
+    | 'drop-first'
+    | 'input-only'
+    | 'paste-only';
+
+export interface SelectorLocator {
+    selector: string;
+    rootSelector?: SelectorSpec;
+    inShadowDom?: boolean;
+    shadowRootSelector?: SelectorSpec;
+}
+
+export type SelectorSpec = string | SelectorLocator | Array<string | SelectorLocator>;
+
+export type AdapterActionType =
+    | 'clickButtonByText'
+    | 'findAndSetDataId'
+    | 'findParentAndSetDataId'
+    | 'findLastAndSetDataId'
+    | 'waitForElement'
+    | 'wait'
+    | 'triggerClick';
+
+export interface AdapterAction {
+    type: AdapterActionType;
+    params: Record<string, unknown>;
 }
 
 export interface ServiceAdapter {
@@ -18,10 +41,20 @@ export interface ServiceAdapter {
     submitDelay?: number; // Optional custom delay for auto-submit
 
     // Selectors for DOM manipulation
-    inputSelector: string;
-    submitSelector: string;
+    inputSelector: SelectorSpec;
+    submitSelector: SelectorSpec;
+    readySelector?: SelectorSpec;
     // Optional: wrapper selector to scope searches
-    rootSelector?: string;
+    rootSelector?: SelectorSpec;
+    inputMethod?: InputMethod;
+    firefoxInputMethod?: InputMethod;
+    submitMode?: SubmitMode;
+    submitVerificationMode?: SubmitVerificationMode;
+    uploadStrategy?: UploadStrategy;
+    readyActions?: AdapterAction[];
+    inputActions?: AdapterAction[];
+    sendActions?: AdapterAction[];
+    newChatActions?: AdapterAction[];
 }
 
 export interface ChatBot extends ServiceAdapter {
@@ -45,7 +78,6 @@ export interface StorageData {
     customAdapters?: ServiceAdapter[];
     activeBots?: ChatBot[];
     isSyncEnabled?: boolean;
-    prompts?: Prompt[];
     // Removed AdapterPreference as it's separate? No, keep it.
     adapterPreferences?: AdapterPreference[];
     activeBotIds?: string[]; // Actually stored key
@@ -64,8 +96,25 @@ export const DEFAULT_ADAPTERS: ServiceAdapter[] = [
         name: 'OpenAI (ChatGPT)',
         url: 'https://chatgpt.com',
         icon: 'Bot',
-        inputSelector: '#prompt-textarea',
-        submitSelector: 'button[data-testid="send-button"]'
+        readySelector: [
+            '#prompt-textarea',
+            'textarea[data-testid="prompt-textarea"]',
+            'form textarea'
+        ],
+        inputSelector: [
+            '#prompt-textarea',
+            'textarea[data-testid="prompt-textarea"]',
+            'form textarea'
+        ],
+        submitSelector: [
+            'button[data-testid="send-button"]',
+            'button[aria-label*="Send" i]',
+            'button[aria-label*="发送" i]'
+        ],
+        inputMethod: 'pasteAndText',
+        submitMode: 'auto',
+        submitVerificationMode: 'strict',
+        uploadStrategy: 'input-first'
     },
     {
         id: 'claude',
@@ -80,8 +129,24 @@ export const DEFAULT_ADAPTERS: ServiceAdapter[] = [
         name: 'Gemini',
         url: 'https://gemini.google.com',
         icon: 'Bot',
-        inputSelector: 'div[contenteditable="true"][role="textbox"]',
-        submitSelector: 'button[aria-label="Send message"]'
+        readySelector: [
+            'rich-textarea div[contenteditable="true"]',
+            'div[contenteditable="true"][role="textbox"]'
+        ],
+        inputSelector: [
+            'rich-textarea div[contenteditable="true"]',
+            'div[contenteditable="true"][role="textbox"]',
+            'div[contenteditable="true"][aria-label*="Enter a prompt" i]'
+        ],
+        submitSelector: [
+            'button[aria-label="Send message"]',
+            'button[aria-label*="发送" i]',
+            'button[mattooltip*="Send" i]'
+        ],
+        inputMethod: 'default',
+        submitMode: 'button',
+        submitVerificationMode: 'strict',
+        uploadStrategy: 'paste-first'
     },
     {
         id: 'copilot',
@@ -96,16 +161,82 @@ export const DEFAULT_ADAPTERS: ServiceAdapter[] = [
         name: '豆包',
         url: 'https://www.doubao.com',
         icon: 'Bot',
-        inputSelector: 'textarea.semi-input-textarea',
-        submitSelector: '#flow-end-msg-send'
+        readySelector: [
+            'textarea.semi-input-textarea',
+            'textarea[placeholder*="发消息"]',
+            'textarea'
+        ],
+        inputSelector: [
+            'textarea.semi-input-textarea',
+            'textarea[placeholder*="发消息"]',
+            'textarea'
+        ],
+        submitSelector: [
+            '[data-id="send-button"]',
+            '#flow-end-msg-send',
+            'button[id*="send"]',
+            'button[aria-label*="发送" i]',
+            'button[type="submit"]'
+        ],
+        inputMethod: 'input',
+        submitMode: 'auto',
+        submitVerificationMode: 'strict',
+        uploadStrategy: 'input-first',
+        sendActions: [
+            {
+                type: 'findAndSetDataId',
+                params: {
+                    selector: [
+                        '#flow-end-msg-send',
+                        'button[id*="send"]',
+                        'button[aria-label*="发送" i]',
+                        'button[type="submit"]'
+                    ],
+                    dataId: 'send-button'
+                }
+            }
+        ]
     },
     {
         id: 'qianwen',
         name: '千问',
         url: 'https://www.qianwen.com',
         icon: 'Bot',
-        inputSelector: 'div[data-slate-editor="true"]',
-        submitSelector: '.operateBtn-JsB9e2'
+        readySelector: [
+            'div[data-slate-editor="true"]',
+            'div[contenteditable="true"][data-slate-editor="true"]',
+            'div[contenteditable="true"][role="textbox"]'
+        ],
+        inputSelector: [
+            'div[data-slate-editor="true"]',
+            'div[contenteditable="true"][data-slate-editor="true"]',
+            'div[contenteditable="true"][role="textbox"]'
+        ],
+        submitSelector: [
+            '[data-id="send-button"]',
+            '.operateBtn-JsB9e2',
+            'button[class*="operateBtn"]',
+            'button[aria-label*="发送" i]',
+            'button[type="submit"]'
+        ],
+        inputMethod: 'pasteAndText',
+        submitMode: 'auto',
+        submitVerificationMode: 'optimistic',
+        uploadStrategy: 'paste-first',
+        sendActions: [
+            {
+                type: 'findAndSetDataId',
+                params: {
+                    selector: [
+                        '.operateBtn-JsB9e2',
+                        'button[class*="operateBtn"]',
+                        'button[aria-label*="发送" i]',
+                        'button[type="submit"]'
+                    ],
+                    dataId: 'send-button'
+                }
+            }
+        ]
     },
     {
         id: 'yiyan',
@@ -136,8 +267,43 @@ export const DEFAULT_ADAPTERS: ServiceAdapter[] = [
         name: 'ChatGLM',
         url: 'https://chatglm.cn',
         icon: 'Bot',
-        inputSelector: 'div[contenteditable="true"][role="textbox"], textarea',
-        submitSelector: 'button[type="submit"], button[aria-label*="发送" i], .enter-btn, div[class*="enter-btn"], div[class*="send-btn"]'
+        readySelector: [
+            'div[contenteditable="true"][role="textbox"]',
+            'textarea',
+            'div[contenteditable="true"]'
+        ],
+        inputSelector: [
+            'div[contenteditable="true"][role="textbox"]',
+            'textarea',
+            'div[contenteditable="true"]'
+        ],
+        submitSelector: [
+            '[data-id="send-button"]',
+            'button[type="submit"]',
+            'button[aria-label*="发送" i]',
+            '.enter-btn',
+            'div[class*="enter-btn"]',
+            'div[class*="send-btn"]'
+        ],
+        inputMethod: 'default',
+        submitMode: 'auto',
+        submitVerificationMode: 'optimistic',
+        uploadStrategy: 'input-first',
+        sendActions: [
+            {
+                type: 'findAndSetDataId',
+                params: {
+                    selector: [
+                        'button[type="submit"]',
+                        'button[aria-label*="发送" i]',
+                        '.enter-btn',
+                        'div[class*="enter-btn"]',
+                        'div[class*="send-btn"]'
+                    ],
+                    dataId: 'send-button'
+                }
+            }
+        ]
     }
 ];
 
@@ -147,8 +313,6 @@ export const DEFAULT_ADAPTERS: ServiceAdapter[] = [
 export type MessageType =
     | 'USER_MESSAGE'           // 用户发送消息
     | 'INJECT_PROMPT'          // 注入提示词
-    | 'DETECT_SELECTORS'       // 请求检测选择器
-    | 'SELECTORS_DETECTED'     // 选择器检测结果
     | 'CONTENT_ERROR';         // Content Script 错误
 
 export interface UserMessagePayload {
@@ -165,12 +329,6 @@ export interface InjectPromptPayload {
     content: string;
 }
 
-export interface DetectedSelectorsPayload {
-    inputSelector: string;
-    submitSelector: string;
-    confidence: number;
-}
-
 export interface ContentErrorPayload {
     error: string;
 }
@@ -178,16 +336,12 @@ export interface ContentErrorPayload {
 export type MessagePayload =
     | UserMessagePayload
     | InjectPromptPayload
-    | DetectedSelectorsPayload
     | ContentErrorPayload;
 
 export interface HubMessage<T extends MessageType = MessageType> {
     type: T;
     payload: T extends 'USER_MESSAGE' ? UserMessagePayload
     : T extends 'INJECT_PROMPT' ? InjectPromptPayload
-    : T extends 'SELECTORS_DETECTED' ? DetectedSelectorsPayload
     : T extends 'CONTENT_ERROR' ? ContentErrorPayload
     : never;
 }
-
-

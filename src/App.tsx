@@ -1,5 +1,5 @@
-import { useState, useRef, useEffect } from 'react';
-import { MessageSquare, PanelLeft } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Layers3 } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -14,15 +14,16 @@ import { Sidebar } from './components/Sidebar';
 import { ChatFrame } from './components/ChatFrame';
 import { SortableChatFrame } from './components/SortableChatFrame';
 import { UnifiedInput } from './components/UnifiedInput';
-import { PromptLibrary } from './components/PromptLibrary';
 import { Settings } from './components/Settings';
 import { useStore } from './store';
 import { cn } from './lib/utils';
 import type { ChatBot } from './types';
 import { useBotDragAndDrop } from './hooks/useBotDragAndDrop';
-
+import { useFrameProtocolBridge } from './runtime/useFrameProtocolBridge';
 
 function App() {
+  useFrameProtocolBridge();
+
   const activeBots = useStore((state) => state.activeBots);
   const availableAdapters = useStore((state) => state.availableAdapters);
   const toggleBot = useStore((state) => state.toggleBot);
@@ -30,10 +31,9 @@ function App() {
   const removeCustomAdapter = useStore((state) => state.removeCustomAdapter);
   const updateCustomAdapter = useStore((state) => state.updateCustomAdapter);
 
-  const [isPromptsOpen, setIsPromptsOpen] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [focusedBotId, setFocusedBotId] = useState<string | null>(null);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [isModelDrawerOpen, setIsModelDrawerOpen] = useState(false);
 
   const { sensors, activeDragId, handleDragStart, handleDragEnd } = useBotDragAndDrop();
 
@@ -41,40 +41,24 @@ function App() {
     toggleBot(id);
   };
 
-  // Auto-hide Sidebar Logic
-  const sidebarTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const handleSidebarMouseEnter = () => {
-    if (sidebarTimerRef.current) {
-      clearTimeout(sidebarTimerRef.current);
-      sidebarTimerRef.current = null;
-    }
+  const toggleModelDrawer = () => {
+    setIsModelDrawerOpen((prev) => !prev);
   };
 
-  const handleSidebarMouseLeave = () => {
-    // Only auto-hide if it's currently open
-    if (!isSidebarCollapsed) {
-      sidebarTimerRef.current = setTimeout(() => {
-        setIsSidebarCollapsed(true);
-      }, 10000); // 10 seconds
-    }
-  };
-
-  // Sync sidebar state to body class for CSS variable calculations
   useEffect(() => {
-    if (isSidebarCollapsed) {
-      document.body.classList.add('sidebar-collapsed');
-    } else {
-      document.body.classList.remove('sidebar-collapsed');
-    }
-  }, [isSidebarCollapsed]);
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') {
+        return;
+      }
 
-  // Auto-collapse sidebar when 4+ bots are active
-  useEffect(() => {
-    if (activeBots.length >= 4) {
-      setIsSidebarCollapsed(true);
-    }
-  }, [activeBots.length]);
+      if (isModelDrawerOpen) {
+        setIsModelDrawerOpen(false);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isModelDrawerOpen]);
 
   const getDynamicGridClass = () => {
     const count = activeBots.length;
@@ -87,129 +71,111 @@ function App() {
   return (
     <div
       className={cn(
-        "flex h-screen w-screen overflow-hidden font-system transition-colors duration-300",
-        // Global Bg: Transparent to reveal body's atmospheric gradient
-        "bg-transparent text-gray-900 dark:text-gray-100"
+        "relative flex h-screen w-screen overflow-hidden font-system transition-colors duration-300",
+        "bg-transparent text-slate-100"
       )}
     >
-      {/* 1. Sidebar */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute left-[-10%] top-[-10%] h-[380px] w-[380px] rounded-full bg-sky-500/6 blur-3xl" />
+        <div className="absolute right-[-6%] top-[6%] h-[240px] w-[240px] rounded-full bg-blue-500/6 blur-3xl" />
+        <div className="absolute bottom-[-24%] left-[32%] h-[320px] w-[320px] rounded-full bg-cyan-400/3 blur-3xl" />
+      </div>
+
       <Sidebar
         adapters={availableAdapters}
         activeBotIds={activeBots.map(b => b.id)}
         onToggleBot={handleToggleBot}
         onOpenSettings={() => setIsSettingsOpen(true)}
-        isCollapsed={isSidebarCollapsed}
-        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-        onMouseEnter={handleSidebarMouseEnter}
-        onMouseLeave={handleSidebarMouseLeave}
+        isOpen={isModelDrawerOpen}
+        onClose={() => setIsModelDrawerOpen(false)}
       />
 
-      {/* 2. Main Content - Split into Chat Area + Input Bar */}
-      <div className="flex-1 flex flex-col h-full relative">
-        {/* 2a. Chat Grid Container (grows to fill available space) */}
-        <div className="flex-1 overflow-hidden px-0 pt-0 pb-[72px]">
-          {/* Removed px-4 pt-1.5 to let grid handle padding via .chat-grid-container */}
-          {activeBots.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-gray-500 space-y-4">
-              <div className="w-16 h-16 rounded-2xl bg-gray-200 dark:bg-gray-800 flex items-center justify-center">
-                <span className="text-2xl">⚡️</span>
-              </div>
-              <p className="text-lg font-medium text-gray-500 dark:text-gray-400">暂无活跃对话</p>
-              <p className="text-sm text-gray-400 dark:text-gray-500">请从左侧栏选择一个 AI 服务开始</p>
-            </div>
-          ) : (
-            <DndContext
-              sensors={sensors}
-              collisionDetection={closestCenter}
-              onDragStart={handleDragStart}
-              onDragEnd={handleDragEnd}
-            >
-              <div
-                className={cn(
-                  "chat-grid-container",
-                  getDynamicGridClass()
-                )}
-              >
-                <SortableContext
-                  items={activeBots.map((b) => b.instanceId)}
-                  strategy={rectSortingStrategy}
+      <div className="relative flex h-full min-w-0 flex-1 flex-col p-3">
+        <div className="workspace-canvas relative flex h-full min-h-0 flex-col">
+          <div className="flex-1 min-h-0 overflow-hidden pb-[76px]">
+            {activeBots.length === 0 ? (
+              <div className="flex h-full flex-col items-center justify-center px-6 text-center">
+                <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-[20px] border border-white/[0.08] bg-white/[0.03]">
+                  <Layers3 className="h-7 w-7 text-sky-300" />
+                </div>
+                <h2 className="font-display text-[28px] font-semibold text-white">
+                  选择模型开始并行对话
+                </h2>
+                <p className="mt-3 max-w-[540px] text-[15px] leading-7 text-slate-400">
+                  聊天窗口会出现在这里，方便你同时比较多个 AI 的输出结果。
+                </p>
+                <button
+                  onClick={() => setIsModelDrawerOpen(true)}
+                  className="btn-secondary mt-6 h-11 rounded-full px-5 text-slate-100"
                 >
-                  {activeBots.map((bot) => {
-                    const isFocused = focusedBotId === bot.id;
-                    const isHidden = focusedBotId && !isFocused;
-
-                    return (
-                      <div
-                        key={bot.instanceId}
-                        className={cn(
-                          "chat-grid-item min-h-0 min-w-0",
-                          // If focused: just raise z-index above overlay, no size change
-                          isFocused ? "relative z-40" : "",
-
-                          // If hidden: use visibility:hidden to keep in grid flow (NOT hidden-visually which uses position:absolute)
-                          isHidden ? "invisible" : ""
-                        )}
-                      >
-                        {/* 
-                            ALWAYS render SortableChatFrame to preserve component tree and iframe state.
-                            We will handle "notify SortableChatFrame to disable drag" via props if needed,
-                            or simply rely on key persistency.
-                            disable the drag listeners INSIDE it.
-                         */}
-                        <SortableChatFrame
-                          bot={bot}
-                          isFocused={isFocused}
-                          onToggleFocus={() => setFocusedBotId(isFocused ? null : bot.id)}
-                          onRemove={() => handleToggleBot(bot.id)}
-                        />
-                      </div>
-                    );
-                  })}
-                </SortableContext>
+                  打开模型栏
+                </button>
               </div>
+            ) : (
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+              >
+                <div
+                  className={cn(
+                    "chat-grid-container",
+                    getDynamicGridClass()
+                  )}
+                >
+                  <SortableContext
+                    items={activeBots.map((b) => b.instanceId)}
+                    strategy={rectSortingStrategy}
+                  >
+                    {activeBots.map((bot) => {
+                      const isFocused = focusedBotId === bot.id;
+                      const isHidden = focusedBotId && !isFocused;
 
-              {/* Drag Overlay for smooth visual feedback */}
-              <DragOverlay>
-                {activeDragId ? (
-                  <ChatFrame
-                    bot={activeBots.find((b) => b.instanceId === activeDragId) as ChatBot}
-                    isFocused={false}
-                    onToggleFocus={() => { }}
-                    onRemove={() => { }}
-                    isDragging={true} // Add visual style for overlay
-                    className="h-full opacity-90 cursor-grabbing"
-                  />
-                ) : null}
-              </DragOverlay>
-            </DndContext>
-          )}
-          {/* 3. Unified Input Bar (Absolute Bottom - Inside Main Content) */}
-          <UnifiedInput />
+                      return (
+                        <div
+                          key={bot.instanceId}
+                          className={cn(
+                            "chat-grid-item min-h-0 min-w-0",
+                            isFocused ? "relative z-40" : "",
+                            isHidden ? "invisible" : ""
+                          )}
+                        >
+                          <SortableChatFrame
+                            bot={bot}
+                            isFocused={isFocused}
+                            onToggleFocus={() => setFocusedBotId(isFocused ? null : bot.id)}
+                            onRemove={() => handleToggleBot(bot.id)}
+                          />
+                        </div>
+                      );
+                    })}
+                  </SortableContext>
+                </div>
+
+                <DragOverlay>
+                  {activeDragId ? (
+                    <ChatFrame
+                      bot={activeBots.find((b) => b.instanceId === activeDragId) as ChatBot}
+                      isFocused={false}
+                      onToggleFocus={() => { }}
+                      onRemove={() => { }}
+                      isDragging={true}
+                      className="h-full opacity-90 cursor-grabbing"
+                    />
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
+            )}
+          </div>
+
+          <UnifiedInput
+            isModelDrawerOpen={isModelDrawerOpen}
+            onToggleModelDrawer={toggleModelDrawer}
+          />
         </div>
       </div>
 
-      {/* 4. Prompt Library Drawer */}
-      <PromptLibrary
-        isOpen={isPromptsOpen}
-        onClose={() => setIsPromptsOpen(false)}
-        isSidebarCollapsed={isSidebarCollapsed}
-      />
-
-      {/* Prompt Library Floating Button (Bottom Right) */}
-      <button
-        onClick={() => setIsPromptsOpen(!isPromptsOpen)}
-        className={cn(
-          "fixed bottom-[9px] right-6 z-50 w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 shadow-xl hover:scale-105 active:scale-95",
-          "bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl",
-          "border border-gray-200 dark:border-white/10",
-          isPromptsOpen ? "text-blue-500 bg-white dark:bg-gray-700" : "text-gray-600 dark:text-gray-300"
-        )}
-        title="提示词库"
-      >
-        <MessageSquare className="w-6 h-6" />
-      </button>
-
-      {/* 5. Settings Modal */}
       <Settings
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
@@ -219,30 +185,9 @@ function App() {
         onUpdateAdapter={updateCustomAdapter}
       />
 
-      {/* Floating Sidebar Toggle (Recovery for users who expect a button) */}
-      <div
-        className={cn(
-          "fixed bottom-[9px] left-6 z-50 transition-all duration-300",
-          isSidebarCollapsed ? "opacity-100 translate-x-0" : "opacity-0 -translate-x-4 pointer-events-none"
-        )}
-      >
-        <button
-          onClick={() => setIsSidebarCollapsed(false)}
-          className={cn(
-            "w-12 h-12 rounded-full flex items-center justify-center shadow-xl transition-transform hover:scale-105 active:scale-95",
-            "bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border border-gray-200 dark:border-white/10",
-            "text-gray-600 dark:text-gray-300 hover:text-black dark:hover:text-white"
-          )}
-          title="展开侧边栏"
-        >
-          <PanelLeft className="w-6 h-6" />
-        </button>
-      </div>
-
-      {/* Overlay for Focus Mode (Background dim) - NO backdrop-blur to prevent blurry text */}
       {focusedBotId && activeBots.length > 1 && (
         <div
-          className="fixed inset-0 bg-black/40 z-30 pointer-events-none transition-opacity duration-300"
+          className="fixed inset-0 z-30 pointer-events-none bg-[radial-gradient(circle_at_center,rgba(2,6,23,0.18),rgba(2,6,23,0.62))] transition-opacity duration-300"
           aria-hidden="true"
         />
       )}

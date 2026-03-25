@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "JackDu ChatHub",
-    "version": "1.0.0",
+    "version": "3.0.0",
     "description": "A centralized hub for multiple AI chat services. Expert Reviewed.",
     "permissions": [
         "storage",
@@ -43,7 +43,7 @@
     "content_scripts": [
         {
             "matches": [
-                "<all_urls>"
+                "https://placeholder.invalid/*"
             ],
             "js": [
                 "src/content/index.ts"

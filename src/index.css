@@ -4,63 +4,310 @@
 
 @layer base {
   :root {
-    /* Define Safe Zones */
-    --sidebar-width: 220px;
-    /* Default sidebar width */
-    --right-gap: 120px;
-    /* Right gap for floating buttons + margin */
+    --surface-0: #03060b;
+    --surface-1: #08101a;
+    --surface-2: rgba(10, 17, 29, 0.84);
+    --surface-3: rgba(11, 20, 34, 0.94);
+    --surface-4: rgba(255, 255, 255, 0.045);
+    --surface-edge: rgba(159, 185, 226, 0.11);
+    --surface-inner: rgba(255, 255, 255, 0.06);
+    --text-strong: #f1f6ff;
+    --text-soft: #a2afc3;
+    --text-faint: #6e7a8d;
+    --accent: #88aee6;
+    --accent-strong: #5e88cc;
+    --success: #39d38b;
+    --warning: #f1c15a;
+    --danger: #f57486;
   }
 
-  /* Update sidebar width when collapsed - Need space for the floating toggle button (left: 24px + width 48px + gap) */
-  body.sidebar-collapsed {
-    --sidebar-width: 80px;
+  html,
+  body,
+  #root {
+    min-height: 100vh;
+    margin: 0;
   }
 
   html,
   body {
     @apply font-system antialiased;
     overscroll-behavior: none;
-
-    /* Global Atmospheric Background v2 */
-    /* Ensure background fills screen */
-    min-height: 100vh;
-    margin: 0;
-
-    /* Core Gradient: Top light source falling downwards */
-    background: radial-gradient(circle at 50% -20%,
-        #1c1c1f 0%,
-        #09090b 40%,
-        #000000 100%);
-
-    /* Keep background fixed for spatial depth */
+    background-color: var(--surface-0);
+    background-image:
+      radial-gradient(circle at 14% 12%, rgba(65, 128, 255, 0.11), transparent 23%),
+      radial-gradient(circle at 86% 10%, rgba(67, 188, 255, 0.07), transparent 16%),
+      radial-gradient(circle at 50% 120%, rgba(17, 31, 54, 0.22), transparent 32%),
+      linear-gradient(180deg, #08111d 0%, #04070d 54%, #020407 100%);
     background-attachment: fixed;
-
-    /* Font optimization for dark background */
-    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color: var(--text-strong);
+    font-family: "SF Pro Display", "Avenir Next", "Segoe UI Variable", "Helvetica Neue", sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
-    color: #ffffff;
   }
 
-  /* Typography Polish: Refined Kerning */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.06;
+    background-image:
+      linear-gradient(rgba(148, 163, 184, 0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(148, 163, 184, 0.04) 1px, transparent 1px);
+    background-size: 112px 112px;
+    mask-image: radial-gradient(circle at center, black 24%, transparent 82%);
+  }
+
   h1,
   h2,
   h3,
-  .nav-item,
   .window-title,
   .btn-base {
-    letter-spacing: -0.01em;
+    letter-spacing: -0.02em;
+  }
+
+  * {
+    scrollbar-color: rgba(148, 163, 184, 0.38) transparent;
   }
 }
 
 @layer components {
-
-  /* ... existing styles ... */
   .glass-panel {
-    @apply bg-white/70 dark:bg-gray-900/70 backdrop-blur-xl border border-white/20 dark:border-white/5 shadow-xl;
+    @apply backdrop-blur-2xl;
+    background: linear-gradient(180deg, rgba(14, 22, 38, 0.84), rgba(8, 14, 24, 0.72));
+    border: 1px solid var(--surface-edge);
+    box-shadow: 0 24px 60px rgba(2, 6, 23, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
 
-  /* Utility to hide elements visually but keep them in DOM (prevent iframe reload) */
+  .workspace-canvas {
+    @apply relative min-h-0 flex-1 overflow-hidden rounded-[22px];
+    background:
+      radial-gradient(circle at top center, rgba(83, 137, 255, 0.04), transparent 34%),
+      linear-gradient(180deg, rgba(6, 11, 19, 0.18), rgba(5, 10, 18, 0.08));
+    border: 1px solid rgba(255, 255, 255, 0.025);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.02),
+      0 8px 24px rgba(2, 6, 23, 0.14);
+  }
+
+  .workspace-canvas::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 14%),
+      radial-gradient(circle at center, transparent 60%, rgba(2, 6, 14, 0.18) 100%);
+  }
+
+  .workspace-panel {
+    @apply relative overflow-hidden rounded-[30px] backdrop-blur-2xl;
+    background:
+      linear-gradient(180deg, rgba(9, 16, 27, 0.9), rgba(5, 9, 16, 0.94));
+    border: 1px solid rgba(143, 169, 214, 0.12);
+    box-shadow: 0 20px 48px rgba(2, 6, 23, 0.26), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+
+  .workspace-panel::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.04), transparent 16%);
+  }
+
+  .workspace-topbar {
+    @apply relative flex items-center justify-between gap-4 rounded-[22px] px-4 py-3 backdrop-blur-xl;
+    background: linear-gradient(180deg, rgba(10, 16, 28, 0.76), rgba(7, 12, 21, 0.72));
+    border: 1px solid rgba(143, 169, 214, 0.1);
+    box-shadow: 0 14px 28px rgba(2, 6, 23, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .workspace-stat {
+    @apply rounded-2xl px-3 py-2.5 backdrop-blur-xl transition-all duration-300;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(143, 169, 214, 0.1);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
+
+  .workspace-stat strong {
+    color: var(--text-strong);
+    font-size: 0.95rem;
+    font-weight: 600;
+  }
+
+  .workspace-stat span {
+    color: var(--text-soft);
+    font-size: 0.62rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+
+  .sidebar-shell {
+    @apply absolute bottom-3 left-3 top-3 flex h-auto flex-col overflow-hidden rounded-[22px] backdrop-blur-xl;
+    width: 296px;
+    background:
+      linear-gradient(180deg, rgba(12, 19, 32, 0.94), rgba(7, 11, 20, 0.97));
+    border: 1px solid rgba(140, 167, 209, 0.1);
+    box-shadow: 0 18px 44px rgba(2, 6, 23, 0.32), inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  }
+
+  .sidebar-shell::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.028), transparent 18%);
+  }
+
+  .sidebar-brand {
+    @apply rounded-[18px] p-4;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.02));
+    border: 1px solid rgba(143, 169, 214, 0.075);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.04),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.01);
+  }
+
+  .sidebar-section-title {
+    color: var(--text-faint);
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+  }
+
+  .sidebar-item {
+    @apply relative flex w-full items-center gap-3 rounded-[16px] px-3 py-3 transition-all duration-200;
+    border: 1px solid rgba(255, 255, 255, 0.01);
+  }
+
+  .sidebar-item:hover {
+    background: rgba(255, 255, 255, 0.045);
+    border-color: rgba(143, 169, 214, 0.09);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
+
+  .sidebar-item-active {
+    background:
+      linear-gradient(180deg, rgba(23, 40, 66, 0.8), rgba(14, 24, 41, 0.88));
+    border-color: rgba(114, 166, 255, 0.18);
+    box-shadow:
+      0 12px 22px rgba(18, 72, 160, 0.13),
+      inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+
+  .sidebar-item-badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.16em];
+    background: rgba(102, 182, 255, 0.1);
+    border: 1px solid rgba(102, 182, 255, 0.14);
+    color: rgba(226, 240, 255, 0.86);
+  }
+
+  .frame-shell {
+    @apply relative flex h-full flex-col overflow-hidden rounded-[16px] backdrop-blur-xl transition-all duration-300;
+    background:
+      linear-gradient(180deg, rgba(10, 17, 29, 0.86), rgba(5, 9, 16, 0.94));
+    border: 1px solid rgba(143, 169, 214, 0.08);
+    box-shadow: 0 8px 18px rgba(2, 6, 23, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .frame-shell::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.032), transparent 12%),
+      radial-gradient(circle at top center, rgba(92, 141, 255, 0.04), transparent 34%);
+  }
+
+  .frame-shell-focused {
+    box-shadow: 0 16px 38px rgba(2, 6, 23, 0.34), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    border-color: rgba(132, 171, 240, 0.16);
+  }
+
+  .frame-header {
+    @apply relative flex items-center gap-3 px-3 py-2 backdrop-blur-xl;
+    min-height: 38px;
+    background:
+      linear-gradient(180deg, rgba(15, 24, 40, 0.76), rgba(10, 16, 28, 0.76));
+    border-bottom: 1px solid rgba(143, 169, 214, 0.08);
+  }
+
+  .frame-status-pill {
+    @apply inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[10px] font-semibold;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    color: rgba(226, 233, 245, 0.78);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  }
+
+  .btn-base {
+    @apply inline-flex items-center justify-center gap-2 rounded-[14px] text-sm font-medium transition-all duration-200 active:scale-[0.98] select-none;
+  }
+
+  .btn-secondary {
+    @apply btn-base;
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), rgba(255, 255, 255, 0.025));
+    border: 1px solid rgba(255, 255, 255, 0.075);
+    color: var(--text-strong);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  }
+
+  .btn-secondary:hover {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.035));
+    border-color: rgba(162, 189, 233, 0.12);
+  }
+
+  .btn-primary {
+    @apply btn-base text-white;
+    background: linear-gradient(135deg, #5a87cb, #476fad);
+    border: 1px solid rgba(153, 186, 235, 0.14);
+    box-shadow:
+      0 10px 20px rgba(55, 101, 179, 0.22),
+      inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 12px 24px rgba(55, 101, 179, 0.26),
+      inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  }
+
+  .btn-danger {
+    @apply btn-base;
+    background: rgba(244, 109, 135, 0.12);
+    border: 1px solid rgba(244, 109, 135, 0.18);
+    color: #ff9fb3;
+  }
+
+  .btn-icon {
+    @apply rounded-full border border-transparent p-2 transition-all duration-200;
+    color: var(--text-soft);
+  }
+
+  .btn-icon:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.05);
+    color: var(--text-strong);
+  }
+
+  .glass-orb-button {
+    @apply flex items-center justify-center rounded-full backdrop-blur-xl transition-all duration-300;
+    background: linear-gradient(180deg, rgba(17, 27, 45, 0.92), rgba(10, 17, 29, 0.82));
+    border: 1px solid rgba(143, 169, 214, 0.16);
+    box-shadow: 0 18px 40px rgba(2, 6, 23, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.07);
+    color: var(--text-strong);
+  }
+
+  .glass-orb-button:hover {
+    transform: translateY(-2px) scale(1.02);
+    border-color: rgba(120, 179, 255, 0.22);
+  }
+
   .hidden-visually {
     position: absolute !important;
     width: 1px !important;
@@ -74,52 +321,17 @@
     visibility: hidden !important;
   }
 
-  .macos-panel {
-    @apply bg-white/70 dark:bg-[#1d1d1f]/60 backdrop-blur-[20px] backdrop-saturate-[180%] border border-black/5 dark:border-white/[0.08] rounded-xl shadow-mac-panel;
-  }
-
-  .macos-vibrancy {
-    @apply bg-white/70 dark:bg-[#1d1d1f]/60 backdrop-blur-[20px] backdrop-saturate-[180%] border-black/5 dark:border-white/[0.08];
-  }
-
-  /* Base button styles */
-  .btn-base {
-    @apply inline-flex items-center justify-center gap-2 rounded-[6px] text-sm font-medium transition-all duration-200 active:scale-[0.98] select-none;
-  }
-
-  /* Secondary button (default action) */
-  .btn-secondary {
-    @apply btn-base bg-black/5 hover:bg-black/10 active:bg-black/15 border border-black/10 text-mac-text-light dark:bg-white/10 dark:hover:bg-white/15 dark:active:bg-white/20 dark:border-white/10 dark:text-mac-text-dark;
-  }
-
-  /* Primary button (confirm action) */
-  .btn-primary {
-    @apply btn-base bg-[#007AFF] hover:bg-[#0071E3] active:bg-[#0062C4] text-white shadow-sm border border-transparent;
-  }
-
-  /* Danger button */
-  .btn-danger {
-    @apply btn-base bg-red-500/10 hover:bg-red-500/20 active:bg-red-500/30 text-red-600 border border-red-500/20 dark:text-red-400 dark:border-red-500/30;
-  }
-
-  /* Icon-only button variant */
-  .btn-icon {
-    @apply p-1.5 rounded-[6px] text-gray-500 hover:bg-black/5 hover:text-black active:bg-black/10 transition-colors dark:text-gray-400 dark:hover:bg-white/10 dark:hover:text-white dark:active:bg-white/20;
-  }
-
-  /* Dynamic Chat Grid Styles */
   .chat-grid-container {
     display: grid;
-    gap: 16px;
+    gap: 12px;
     height: 100%;
     width: 100%;
-    padding: 16px;
+    padding: 12px;
     box-sizing: border-box;
-    /* transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1); */
   }
 
   .chat-grid-cols-1 {
-    grid-template-columns: minmax(auto, 1000px);
+    grid-template-columns: minmax(auto, 1140px);
     justify-content: center;
   }
 
@@ -136,62 +348,52 @@
   }
 
   .chat-grid-item {
-    transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
     height: 100%;
-    width: 100%;
     min-width: 0;
+    transition: transform 0.3s ease, opacity 0.3s ease, filter 0.3s ease;
   }
 
-  /* 
-    Floating Command Bar - Robust Collision Avoidance 
-    Using a constrained container to absolutely verify NO overlap.
-  */
   .input-safe-container {
     position: fixed;
-    bottom: 9px;
-    /* Aligned to Sidebar Button's visual bottom margin ((60-42)/2) */
     left: 0;
     right: 0;
-
+    bottom: 12px;
     display: flex;
     justify-content: center;
-    /* Center the capsule in safe zone */
     align-items: flex-end;
-
-    /* 
-       CRITICAL: Symmetrical Padding for Visual Centering 
-       We apply the LARGER of the two obstructions (Sidebar vs Right Buttons) to BOTH sides.
-       This ensures the remaining space is perfectly centered on the screen.
-    */
-    padding-left: max(var(--sidebar-width), var(--right-gap));
-    padding-right: max(var(--sidebar-width), var(--right-gap));
-
+    padding-left: 12px;
+    padding-right: 12px;
     pointer-events: none;
-    /* Let clicks pass through empty areas */
     z-index: 100;
-
-    /* Smooth transition when sidebar collapses */
-    transition: padding 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   }
 
   .input-capsule {
     pointer-events: auto;
-    /* Re-enable clicks */
-
-    /* Internal layout flex */
-    display: flex;
-    align-items: flex-end;
-
-    /* Width is handled by JS logic (w-[800px] or w-full) */
-    /* But max-width constraint is implicit by container width */
+    width: min(100%, 1480px);
     max-width: 100%;
+  }
 
-    /* Transition for width changes */
-    transition: width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1), max-width 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  .input-capsule-shell {
+    @apply relative overflow-hidden rounded-[18px] backdrop-blur-xl;
+    background:
+      linear-gradient(180deg, rgba(10, 17, 29, 0.92), rgba(6, 10, 18, 0.965));
+    border: 1px solid rgba(143, 169, 214, 0.075);
+    box-shadow:
+      0 8px 20px rgba(2, 6, 23, 0.2),
+      inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  }
+
+  .input-capsule-shell::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.022), transparent 24%),
+      radial-gradient(circle at 50% 0%, rgba(93, 142, 255, 0.035), transparent 34%);
   }
 }
 
-/* Fix for iframe swallowing mouse events during drag */
 body.is-dragging iframe {
   pointer-events: none !important;
 }

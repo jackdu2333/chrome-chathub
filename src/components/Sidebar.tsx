@@ -1,4 +1,4 @@
-import { Settings as SettingsIcon, Pin, PinOff, PanelLeft } from 'lucide-react';
+import { Pin, PinOff, Settings as SettingsIcon, Sparkles, X } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { useStore } from '../store';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
@@ -9,36 +9,23 @@ interface SidebarProps {
     adapters: ServiceAdapter[];
     activeBotIds: string[];
     onToggleBot: (id: string) => void;
-    // onTogglePrompts, // Unused
-    // isPromptsOpen,   // Unused
     onOpenSettings: () => void;
-    isCollapsed: boolean;
-    onToggleCollapse: () => void;
-    className?: string;
-    onMouseEnter?: () => void;
-    onMouseLeave?: () => void;
+    isOpen: boolean;
+    onClose: () => void;
 }
 
 export function Sidebar({
     adapters,
     activeBotIds,
     onToggleBot,
-    // onTogglePrompts, // Unused
-    // isPromptsOpen,   // Unused
     onOpenSettings,
-    isCollapsed,
-    onToggleCollapse,
-    className,
-    onMouseEnter,
-    onMouseLeave
+    isOpen,
+    onClose,
 }: SidebarProps) {
-    // const [isCollapsed, setIsCollapsed] = useState(false); // Relocated to App.tsx
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; adapterId: string } | null>(null);
 
     const adapterPreferences = useStore(state => state.adapterPreferences);
     const togglePin = useStore(state => state.togglePin);
-    // const isDarkMode = useStore(state => state.isDarkMode); // Unused
-    // const updateAdapterOrder = useStore(state => state.updateAdapterOrder); // For future manual sorting
 
     const sortedAdapters = useMemo(() => {
         return [...adapters].sort((a, b) => {
@@ -62,6 +49,27 @@ export function Sidebar({
         });
     }, [adapters, adapterPreferences]);
 
+    const getAdapterHost = (adapter: ServiceAdapter) => {
+        try {
+            return new URL(adapter.url).hostname.replace(/^www\./, '');
+        } catch {
+            return 'custom-service';
+        }
+    };
+
+    const getAdapterTone = (adapterId: string) => {
+        const tones = [
+            "from-sky-400/18 to-blue-500/12 text-sky-100",
+            "from-cyan-400/18 to-teal-500/12 text-cyan-100",
+            "from-emerald-400/18 to-teal-500/12 text-emerald-100",
+            "from-amber-300/18 to-orange-500/12 text-amber-100",
+            "from-fuchsia-400/18 to-rose-500/12 text-fuchsia-100",
+        ];
+
+        const sum = Array.from(adapterId).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+        return tones[sum % tones.length];
+    };
+
     const handleContextMenu = (e: React.MouseEvent, id: string) => {
         e.preventDefault();
         setContextMenu({ x: e.clientX, y: e.clientY, adapterId: id });
@@ -75,172 +83,159 @@ export function Sidebar({
     return (
         <div
             className={cn(
-                "relative h-full transition-[width] duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)] z-40 flex-shrink-0 min-w-0",
-                isCollapsed ? "w-0" : "w-[220px]",
-                className
+                "pointer-events-none fixed inset-x-0 top-0 bottom-[76px] z-50",
+                isOpen && "pointer-events-auto"
             )}
-            onMouseEnter={onMouseEnter}
-            onMouseLeave={onMouseLeave}
         >
-            {/* Inner Sliding Container - macOS Sidebar Style */}
+            <button
+                type="button"
+                aria-label="关闭模型栏"
+                onClick={onClose}
+                className={cn(
+                    "absolute inset-0 bg-slate-950/24 transition-opacity duration-200",
+                    isOpen ? "opacity-100" : "opacity-0"
+                )}
+            />
+
             <div className={cn(
-                "absolute left-0 top-0 h-full border-r flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.25,0.1,0.25,1.0)]",
-                isCollapsed ? "-translate-x-full" : "translate-x-0",
-                // Width update: 240px -> 260px -> 220px
-                "w-[220px]",
-                // Sidebar Bg: Light=White / Dark=#0A0A0A (Deep Dark)
-                // Sidebar Border: Light=Gray-200 / Dark=White/6% (Subtle)
-                "bg-white dark:bg-[#0A0A0A] border-r border-gray-200 dark:border-white/[0.06]",
-                "shadow-2xl"
+                "sidebar-shell transition-transform duration-200 ease-[cubic-bezier(0.22,0.61,0.36,1)]",
+                isOpen ? "translate-x-0" : "-translate-x-[calc(100%+24px)]",
             )}>
+                <div className="px-3 pb-3 pt-3">
+                    <div className="sidebar-brand">
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-center gap-3">
+                                <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/[0.07] bg-white/[0.035] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+                                    <Sparkles className="h-4.5 w-4.5 text-sky-300" />
+                                </div>
+                                <div>
+                                    <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                                        Models
+                                    </div>
+                                    <div className="mt-1 text-[18px] font-semibold text-white">
+                                        模型栏
+                                    </div>
+                                </div>
+                            </div>
 
-                {/* Bot List (Moved to Top) */}
-                <div className="flex-1 flex flex-col w-full px-2 py-3 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                            <button
+                                onClick={onClose}
+                                className="btn-icon mt-0.5"
+                                title="关闭模型栏"
+                            >
+                                <X className="h-4 w-4" />
+                            </button>
+                        </div>
 
-                    {/* Render Group Utility */}
+                        <div className="mt-3 text-[12px] text-slate-400">
+                            已激活 {activeBotIds.length} 个模型
+                        </div>
+                    </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-3 pb-4 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                     {(() => {
-                        // Split adapters into Pinned and Unpinned
                         const pinnedAdapters = sortedAdapters.filter(a => adapterPreferences.find(p => p.id === a.id)?.isPinned);
                         const unpinnedAdapters = sortedAdapters.filter(a => !adapterPreferences.find(p => p.id === a.id)?.isPinned);
 
                         const renderAdapterItem = (adapter: ServiceAdapter) => {
                             const isActive = activeBotIds.includes(adapter.id);
                             const isPinned = adapterPreferences.find(p => p.id === adapter.id)?.isPinned;
+                            const host = getAdapterHost(adapter);
+                            const initials = adapter.name.substring(0, 2).toUpperCase();
+                            const tone = getAdapterTone(adapter.id);
 
                             return (
                                 <button
                                     key={adapter.id}
                                     onClick={() => onToggleBot(adapter.id)}
-                                    // Make sure context menu works
                                     onContextMenu={(e) => handleContextMenu(e, adapter.id)}
                                     className={cn(
-                                        // Base layout: Height 34px, Padding 8px (approx via px-2 in parent + local if needed, keeping px-3 from old code or adjusting to px-2 (8px))
-                                        // Prompt asks for padding 8px. "px-2" in tailwind is 8px.
-                                        "w-full h-[34px] px-2 mx-0 justify-start transition-all duration-200 group relative flex-shrink-0 text-[14px] flex items-center gap-2 rounded-[6px] mb-1.5",
-
-                                        // Active State
-                                        isActive
-                                            ? cn(
-                                                // Light mode active
-                                                "bg-blue-50 text-blue-600",
-                                                // Dark mode active: Dark Glass (Critical Fix)
-                                                // 1. Background: 5% White Transparency (Very dark, subtle)
-                                                "dark:bg-white/[0.05]",
-                                                // 2. Content: Pure White, Weight 700 (Bold), Sharp Contrast
-                                                "dark:text-white dark:font-bold",
-                                                // 3. Border: Subtle definition
-                                                "dark:border-y dark:border-white/[0.05]",
-                                                // Shadows/Glows removed for "cleaner" look mostly, preserving some light mode feel
-                                                "shadow-sm dark:shadow-none"
-                                            )
-                                            // Default State
-                                            : "hover:bg-gray-100 dark:hover:bg-white/[0.04] text-gray-600 dark:text-white/60 hover:text-gray-900 dark:hover:text-white"
+                                        "sidebar-item group mb-2",
+                                        isActive && "sidebar-item-active"
                                     )}
                                     title={adapter.name}
                                 >
-                                    {/* Active Indicator (Left Edge) - Only visible when active */}
                                     {isActive && (
-                                        <div className="absolute left-0 top-1/2 -translate-y-1/2 h-[14px] w-[3px] bg-blue-500 rounded-r-[2px] shadow-[0_0_12px_2px_rgba(59,130,246,0.6)]" />
+                                        <div className="absolute left-0 top-1/2 h-7 w-[2px] -translate-y-1/2 rounded-full bg-sky-300 shadow-[0_0_12px_rgba(117,180,255,0.45)]" />
                                     )}
 
-                                    {/* Icon Placeholder */}
                                     <div className={cn(
-                                        "w-5 h-5 flex items-center justify-center transition-colors rounded-[5px]",
-                                        // Remove borders for cleaner look? Prompt says "remove all high saturation color blocks... preserve subtle border gloss".
-                                        // I'll keep the border but make it very subtle.
-                                        "border opacity-90",
-                                        isActive
-                                            ? "border-blue-200 dark:border-white/10 text-blue-500 dark:text-white shadow-[0_0_10px_rgba(255,255,255,0.2)]"
-                                            : "border-gray-200 dark:border-white/10 text-gray-400 dark:text-white/60 group-hover:dark:text-white/70 group-hover:dark:border-white/20"
+                                        "flex h-10 w-10 items-center justify-center rounded-[14px] border text-sm font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]",
+                                        "bg-gradient-to-br",
+                                        tone,
+                                        isActive ? "border-sky-300/20" : "border-white/[0.08]"
                                     )}>
-                                        {/* Using local image if available or first char? The code uses char. */}
-                                        {/* Ideally we'd use the actual icon if available in adapter service */}
-                                        <span className="text-[10px] font-semibold">{adapter.name.substring(0, 1)}</span>
+                                        {initials}
                                     </div>
 
-                                    {/* Name */}
-                                    <span className={cn(
-                                        "truncate flex-1 text-left opacity-90",
-                                        isActive ? "font-bold" : "font-semibold"
-                                    )}>
-                                        {adapter.name}
-                                    </span>
+                                    <div className="min-w-0 flex-1 text-left">
+                                        <div className={cn(
+                                            "truncate text-[13px] font-medium",
+                                            isActive ? "text-white" : "text-slate-100"
+                                        )}>
+                                            {adapter.name}
+                                        </div>
+                                        <div className="mt-1 truncate text-[11px] text-slate-500">
+                                            {host}
+                                        </div>
+                                    </div>
 
-                                    {/* Pin Indicator - Optional to keep, but section header implies it */}
-                                    {isPinned && !pinnedAdapters.length && (
-                                        <Pin className="w-3 h-3 opacity-50 rotate-45 stroke-[1.5]" />
-                                    )}
+                                    <div className="flex flex-col items-end gap-2">
+                                        {isActive ? (
+                                            <span className="sidebar-item-badge">使用中</span>
+                                        ) : isPinned ? (
+                                            <Pin className="h-3.5 w-3.5 rotate-45 text-slate-500" />
+                                        ) : null}
+                                    </div>
                                 </button>
                             );
                         };
 
                         return (
                             <>
-                                {/* PINNED SECTION */}
-                                {pinnedAdapters.length > 0 && (
-                                    <>
-                                        <div className="px-2 mt-2 mb-1">
-                                            <h3 className="text-[11px] uppercase tracking-[1px] font-medium text-gray-400 dark:text-white/30 truncate">
-                                                Favorites
-                                            </h3>
-                                        </div>
-                                        {pinnedAdapters.map(renderAdapterItem)}
-
-                                        {/* Spacer between sections */}
-                                        <div className="h-4" />
-                                    </>
-                                )}
-
-                                {/* ALL MODELS SECTION */}
-                                {unpinnedAdapters.length > 0 && (
-                                    <>
                                         {pinnedAdapters.length > 0 && (
-                                            <div className="px-2 mt-2 mb-1">
-                                                <h3 className="text-[11px] uppercase tracking-[1px] font-medium text-gray-400 dark:text-white/30 truncate">
-                                                    Models
-                                                </h3>
-                                            </div>
-                                        )}
-                                        {unpinnedAdapters.map(renderAdapterItem)}
-                                    </>
+                                            <>
+                                                <div className="px-2 pb-2 pt-3">
+                                                    <h3 className="sidebar-section-title truncate">
+                                                        常用模型
+                                                    </h3>
+                                                </div>
+                                                {pinnedAdapters.map(renderAdapterItem)}
+                                                <div className="h-4" />
+                                            </>
                                 )}
+
+                                        {unpinnedAdapters.length > 0 && (
+                                            <>
+                                                <div className="px-2 pb-2 pt-3">
+                                                    <h3 className="sidebar-section-title truncate">
+                                                        {pinnedAdapters.length > 0 ? "全部模型" : "模型库"}
+                                                    </h3>
+                                                </div>
+                                                {unpinnedAdapters.map(renderAdapterItem)}
+                                            </>
+                                        )}
                             </>
                         );
                     })()}
                 </div>
 
-                {/* Bottom Section - Controls (Moved from Top) */}
                 <div className={cn(
-                    "h-[60px] min-h-[60px] w-full flex items-center justify-between px-4",
-                    // Changed from border-b to border-t
-                    "border-t border-gray-100 dark:border-white/[0.06]",
-                    "bg-gray-50/50 dark:bg-white/[0.02]"
+                    "flex h-[76px] min-h-[76px] w-full items-center justify-between px-3",
+                    "border-t border-white/[0.06] bg-white/[0.02]"
                 )}>
-                    {/* Left: Settings Button */}
                     <button
                         onClick={onOpenSettings}
-                        className="btn-icon w-[42px] h-[42px] flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
+                        className="btn-secondary h-11 flex-1 justify-center"
                         title="设置"
                     >
-                        <SettingsIcon className="w-6 h-6 text-gray-500 dark:text-gray-400" />
-                    </button>
-
-                    {/* Right: Collapse Button */}
-                    <button
-                        onClick={onToggleCollapse}
-                        className="btn-icon w-[42px] h-[42px] flex items-center justify-center rounded-lg hover:bg-gray-100 dark:hover:bg-white/10 transition-colors"
-                        title="收起侧边栏"
-                    >
-                        <PanelLeft className="w-6 h-6 text-gray-500 dark:text-gray-400" />
+                        <SettingsIcon className="h-4 w-4" />
+                        设置
                     </button>
                 </div>
-
             </div>
 
-            {/* Shift/Toggle Button Removed - Now in App.tsx floating */}
-            {/* Context Menu outside? - contextMenu is currently rendered at the end of wrapper */}
-
-            {/* Context Menu */}
             {contextMenu && (
                 <ContextMenu
                     x={contextMenu.x}

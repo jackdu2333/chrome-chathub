@@ -61,14 +61,6 @@ export const createBotSlice: StateCreator<AppState, [], [], BotSlice> = (set, ge
             return;
         }
 
-        // Notify background script to add domain to rules
-        chrome.runtime.sendMessage({
-            type: 'ADD_CUSTOM_DOMAIN',
-            url: adapter.url
-        }, (response) => {
-            console.log('[ChatHub] Domain added:', response);
-        });
-
         const newAdapters = [...state.availableAdapters, adapter];
         set({ availableAdapters: newAdapters });
 

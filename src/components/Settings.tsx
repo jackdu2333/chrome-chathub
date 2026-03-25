@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Plus, Wand2, Edit2, Trash2 } from 'lucide-react';
+import { X, Plus, Edit2, Trash2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { ServiceAdapter } from '../types';
 import { DEFAULT_ADAPTERS } from '../types';
@@ -18,7 +18,6 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
     const [url, setUrl] = useState('');
     const [inputSelector, setInputSelector] = useState('textarea, input[type="text"], [contenteditable="true"]');
     const [submitSelector, setSubmitSelector] = useState('button[type="submit"]');
-    const [detecting, setDetecting] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
 
     // Get custom adapters (not default ones)
@@ -26,146 +25,18 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
         !DEFAULT_ADAPTERS.some(defaultAdapter => defaultAdapter.id === a.id)
     );
 
-    const handleAutoDetect = async () => {
-        if (!url.trim()) {
-            alert('请输入网址！');
-            return;
+    const getSelectorInputValue = (selector: ServiceAdapter['inputSelector']) => {
+        if (typeof selector === 'string') {
+            return selector;
         }
 
-        setDetecting(true);
-
-        try {
-            // Create hidden iframe to load the URL and detect selectors
-            const iframe = document.createElement('iframe');
-            iframe.style.display = 'none';
-            iframe.src = url;
-
-            // Track if CSP error occurred
-            let cspError = false;
-
-            // Listen for CSP/iframe errors in console
-            const originalError = console.error;
-            const errorListener = (...args: any[]) => {
-                const errorMsg = args.join(' ');
-                if (errorMsg.includes('Content Security Policy') ||
-                    errorMsg.includes('frame-ancestors') ||
-                    errorMsg.includes('Refused to display')) {
-                    cspError = true;
-                }
-                originalError.apply(console, args);
-            };
-            console.error = errorListener;
-
-            document.body.appendChild(iframe);
-
-            // Wait for iframe to load (or fail due to CSP)
-            await new Promise<void>((resolve, reject) => {
-                const timeout = setTimeout(() => {
-                    // If we timeout and CSP error detected, treat as CSP failure
-                    if (cspError) {
-                        reject(new Error('CSP_BLOCKED'));
-                    } else {
-                        reject(new Error('Timeout waiting for page to load'));
-                    }
-                }, 3000); // Shorter timeout to detect CSP faster
-
-                iframe.onload = () => {
-                    clearTimeout(timeout);
-                    // Check if CSP blocked content
-                    setTimeout(() => {
-                        if (cspError) {
-                            reject(new Error('CSP_BLOCKED'));
-                        } else {
-                            resolve();
-                        }
-                    }, 500);
-                };
-
-                iframe.onerror = () => {
-                    clearTimeout(timeout);
-                    reject(new Error(cspError ? 'CSP_BLOCKED' : 'Failed to load page'));
-                };
-            });
-
-            // Restore console.error
-            console.error = originalError;
-
-            // If we get here, iframe loaded successfully
-            // Request selector detection from content script
-            return new Promise<void>((resolve) => {
-                const handleMessage = (event: MessageEvent) => {
-                    if (event.data.type === 'SELECTORS_DETECTED') {
-                        window.removeEventListener('message', handleMessage);
-                        document.body.removeChild(iframe);
-
-                        const detected = event.data.payload;
-                        if (detected && detected.inputSelector && detected.submitSelector) {
-                            setInputSelector(detected.inputSelector);
-                            setSubmitSelector(detected.submitSelector);
-                            alert(`✅ 自动检测成功！\n置信度: ${detected.confidence}%`);
-                        } else {
-                            alert('❌ 无法自动检测选择器。\n请手动输入。');
-                        }
-
-                        setDetecting(false);
-                        resolve();
-                    }
-                };
-
-                window.addEventListener('message', handleMessage);
-
-                // Send detection request
-                setTimeout(() => {
-                    iframe.contentWindow?.postMessage({ type: 'DETECT_SELECTORS' }, '*');
-                }, 1000);
-
-                // Failsafe timeout
-                setTimeout(() => {
-                    if (iframe.parentNode) {
-                        window.removeEventListener('message', handleMessage);
-                        document.body.removeChild(iframe);
-                        alert('⏱️ 检测超时。\n请重试或手动输入选择器。');
-                        setDetecting(false);
-                        resolve();
-                    }
-                }, 20000);
-            });
-        } catch (error) {
-            console.error('[ChatHub] Auto-detect error:', error);
-
-            // Handle CSP-specific errors
-            if ((error as Error).message === 'CSP_BLOCKED') {
-                const proceed = confirm(
-                    `🔒 此网站禁止iframe嵌入 (CSP限制)\n\n` +
-                    `解决方案:\n` +
-                    `1. 点击"确定"在新标签页手动检测\n` +
-                    `2. 点击"取消"手动输入选择器\n\n` +
-                    `推荐使用Chrome开发者工具查找:\n` +
-                    `• 输入框: textarea 或 contenteditable\n` +
-                    `• 提交按钮: button[type="submit"]`
-                );
-
-                if (proceed) {
-                    // Open in new tab for manual inspection
-                    alert(
-                        `📖 使用说明:\n\n` +
-                        `1. 新标签页即将打开目标网站\n` +
-                        `2. 按 F12 打开开发者工具\n` +
-                        `3. 使用元素选择器(左上角箭头)点击:\n` +
-                        `   - 输入框\n` +
-                        `   - 发送按钮\n` +
-                        `4. 复制其CSS选择器到此页面\n\n` +
-                        `提示: 右键元素 → Copy → Copy selector`
-                    );
-                    window.open(url, '_blank');
-                }
-
-                setDetecting(false);
-            } else {
-                alert(`❌ 页面加载失败:\n${(error as Error).message}\n\n可能是由于安全限制。\n请手动输入选择器。`);
-                setDetecting(false);
-            }
+        if (Array.isArray(selector)) {
+            return selector
+                .map(item => typeof item === 'string' ? item : item.selector)
+                .join(', ');
         }
+
+        return selector.selector;
     };
 
     const handleSave = () => {
@@ -199,8 +70,8 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
         setEditingId(adapter.id);
         setName(adapter.name);
         setUrl(adapter.url);
-        setInputSelector(adapter.inputSelector);
-        setSubmitSelector(adapter.submitSelector);
+        setInputSelector(getSelectorInputValue(adapter.inputSelector));
+        setSubmitSelector(getSelectorInputValue(adapter.submitSelector));
 
         // Scroll to form
         setTimeout(() => {
@@ -338,16 +209,9 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
                                 placeholder="https://example.com"
                                 className="w-full px-3 py-2 bg-white/50 dark:bg-black/20 border border-black/10 dark:border-white/10 rounded-lg text-[15px] text-mac-text-light dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all mb-2"
                             />
-
-                            {/* Auto-Detect Button */}
-                            <button
-                                onClick={handleAutoDetect}
-                                disabled={!url.trim() || detecting}
-                                className="w-full px-4 py-2 bg-purple-600/10 hover:bg-purple-600/20 text-purple-600 dark:text-purple-400 border border-purple-500/20 rounded-lg text-sm font-medium flex items-center justify-center gap-2 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                <Wand2 className={`w-4 h-4 ${detecting ? 'animate-spin' : ''}`} />
-                                {detecting ? '正在分析页面结构...' : '自动检测选择器'}
-                            </button>
+                            <p className="text-[12px] leading-5 text-gray-500 dark:text-gray-400">
+                                请输入目标站点地址。选择器需要手动填写，建议在普通标签页打开目标网站后，用开发者工具复制输入框和发送按钮的 CSS Selector。
+                            </p>
                         </div>
 
                         {/* Advanced Section */}
