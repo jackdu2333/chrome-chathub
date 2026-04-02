@@ -25,3 +25,5 @@ export function findInstanceIdBySource(source: MessageEventSource | null): strin
 
   return null;
 }
+
+export { frameRegistry };

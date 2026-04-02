@@ -8,7 +8,7 @@ import {
   HubToContentMessage,
   isContentToHubMessage,
 } from './protocol';
-import { findInstanceIdBySource, getFrameWindow } from './frameRegistry';
+import { findInstanceIdBySource, getFrameWindow, frameRegistry } from './frameRegistry';
 import { useFrameSessionStore } from './useFrameSessionStore';
 
 interface PendingCommand {
@@ -125,6 +125,11 @@ export function handleContentMessageEvent(event: MessageEvent) {
 
   const instanceId = findInstanceIdBySource(event.source);
   if (!instanceId) {
+    console.warn('[FrameBridge] ❌ Cannot find instanceId for message source. Event origin:', event.origin, 'Message:', event.data);
+    // Debug: log all registered frames
+    for (const [id, iframe] of frameRegistry.entries()) {
+      console.log('[FrameBridge] Registered frame:', id, iframe.contentWindow === event.source ? '(MATCH)' : '(no match)');
+    }
     return;
   }
 

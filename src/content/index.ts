@@ -206,7 +206,17 @@ window.addEventListener('message', async (event) => {
         const isParentWindow = event.source === window.parent;
         const isExtensionOrigin = event.origin === extensionOrigin;
 
+        console.log('[ChatHub Content] 📩 Message received:', {
+            type: (event.data as any)?.type,
+            source: event.source === window.parent ? 'parent' : 'other',
+            origin: event.origin,
+            isParentWindow,
+            isExtensionOrigin,
+            hostname: window.location.hostname
+        });
+
         if (!isParentWindow && !isExtensionOrigin) {
+            console.log('[ChatHub Content] ⚠️ Message rejected: not from parent window or extension origin');
             return;
         }
 

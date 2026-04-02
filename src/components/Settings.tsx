@@ -105,7 +105,7 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
             {/* Backdrop */}
             <div
                 className={cn(
-                    "fixed inset-0 bg-black/40 backdrop-blur-sm z-50 transition-opacity duration-300",
+                    "fixed inset-0 bg-black/40 backdrop-blur-sm z-[110] transition-opacity duration-300",
                     isOpen ? "opacity-100" : "opacity-0 pointer-events-none"
                 )}
                 onClick={onClose}
@@ -113,7 +113,7 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
 
             {/* Settings Components - macOS Sheet Style */}
             <div className={cn(
-                "fixed right-0 top-0 h-full w-[400px] shadow-2xl z-50 flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.2,0,0,1)]",
+                "fixed right-0 top-0 h-full w-[400px] max-w-full shadow-2xl z-[120] flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.2,0,0,1)]",
                 "bg-mac-light/95 dark:bg-[#1e1e1e]/95 backdrop-blur-xl border-l border-black/5 dark:border-white/10",
                 isOpen ? "translate-x-0" : "translate-x-full"
             )}>
@@ -131,123 +131,125 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto p-5 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
-                    {/* Custom Services List */}
-                    {customAdapters.length > 0 && !editingId && (
-                        <div className="space-y-4 mb-8">
-                            <h3 className="text-[13px] font-medium text-gray-500 uppercase tracking-wide px-1">
-                                已添加服务 ({customAdapters.length})
-                            </h3>
+                <div className="flex flex-1 min-h-0 flex-col">
+                    <div className="flex-1 overflow-y-auto px-5 pt-5 pb-6 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
+                        {/* Custom Services List */}
+                        {customAdapters.length > 0 && !editingId && (
+                            <div className="space-y-4 mb-8">
+                                <h3 className="text-[13px] font-medium text-gray-500 uppercase tracking-wide px-1">
+                                    已添加服务 ({customAdapters.length})
+                                </h3>
 
-                            <div className="space-y-2">
-                                {customAdapters.map(adapter => (
-                                    <div
-                                        key={adapter.id}
-                                        className="bg-white/50 dark:bg-white/5 rounded-xl p-3 border border-black/5 dark:border-white/5 hover:border-blue-500/30 transition-all group"
-                                    >
-                                        <div className="flex items-start justify-between gap-3">
-                                            <div className="flex-1 min-w-0">
-                                                <h4 className="text-[15px] font-medium text-mac-text-light dark:text-mac-text-dark truncate">
-                                                    {adapter.name}
-                                                </h4>
-                                                <p className="text-[13px] text-gray-500 dark:text-gray-400 truncate mt-0.5">
-                                                    {adapter.url}
-                                                </p>
-                                            </div>
-                                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <button
-                                                    onClick={() => handleEdit(adapter)}
-                                                    className="btn-icon text-blue-600 dark:text-blue-400"
-                                                    title="编辑"
-                                                >
-                                                    <Edit2 className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(adapter.id, adapter.name)}
-                                                    className="btn-icon text-red-600 dark:text-red-400 hover:bg-red-500/10 hover:text-red-600 dark:hover:bg-red-500/20"
-                                                    title="删除"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
+                                <div className="space-y-2">
+                                    {customAdapters.map(adapter => (
+                                        <div
+                                            key={adapter.id}
+                                            className="bg-white/50 dark:bg-white/5 rounded-xl p-3 border border-black/5 dark:border-white/5 hover:border-blue-500/30 transition-all group"
+                                        >
+                                            <div className="flex items-start justify-between gap-3">
+                                                <div className="flex-1 min-w-0">
+                                                    <h4 className="text-[15px] font-medium text-mac-text-light dark:text-mac-text-dark truncate">
+                                                        {adapter.name}
+                                                    </h4>
+                                                    <p className="text-[13px] text-gray-500 dark:text-gray-400 truncate mt-0.5">
+                                                        {adapter.url}
+                                                    </p>
+                                                </div>
+                                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button
+                                                        onClick={() => handleEdit(adapter)}
+                                                        className="btn-icon text-blue-600 dark:text-blue-400"
+                                                        title="编辑"
+                                                    >
+                                                        <Edit2 className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(adapter.id, adapter.name)}
+                                                        className="btn-icon text-red-600 dark:text-red-400 hover:bg-red-500/10 hover:text-red-600 dark:hover:bg-red-500/20"
+                                                        title="删除"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
-                                ))}
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        )}
 
-                    {/* Add/Edit Form */}
-                    <div id="service-form" className="space-y-5">
-                        <h3 className="text-[13px] font-medium text-gray-500 uppercase tracking-wide px-1 mb-2">
-                            {editingId ? '编辑详情' : '添加新服务'}
-                        </h3>
+                        {/* Add/Edit Form */}
+                        <div id="service-form" className="space-y-5">
+                            <h3 className="text-[13px] font-medium text-gray-500 uppercase tracking-wide px-1 mb-2">
+                                {editingId ? '编辑详情' : '添加新服务'}
+                            </h3>
 
-                        {/* Name Input */}
-                        <div>
-                            <label className="block text-[13px] font-medium text-mac-text-light dark:text-gray-300 mb-1.5">
-                                服务名称
-                            </label>
-                            <input
-                                type="text"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                placeholder="e.g., Kimi, Perplexity"
-                                className="w-full px-3 py-2 bg-white/50 dark:bg-black/20 border border-black/10 dark:border-white/10 rounded-lg text-[15px] text-mac-text-light dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
-                            />
-                        </div>
-
-                        {/* URL Input */}
-                        <div>
-                            <label className="block text-[13px] font-medium text-mac-text-light dark:text-gray-300 mb-1.5">
-                                网址 URL
-                            </label>
-                            <input
-                                type="url"
-                                value={url}
-                                onChange={(e) => setUrl(e.target.value)}
-                                placeholder="https://example.com"
-                                className="w-full px-3 py-2 bg-white/50 dark:bg-black/20 border border-black/10 dark:border-white/10 rounded-lg text-[15px] text-mac-text-light dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all mb-2"
-                            />
-                            <p className="text-[12px] leading-5 text-gray-500 dark:text-gray-400">
-                                请输入目标站点地址。选择器需要手动填写，建议在普通标签页打开目标网站后，用开发者工具复制输入框和发送按钮的 CSS Selector。
-                            </p>
-                        </div>
-
-                        {/* Advanced Section */}
-                        <div className="pt-4 border-t border-black/5 dark:border-white/5">
-                            <h4 className="text-[13px] font-medium text-gray-400 mb-3">高级配置</h4>
-
-                            {/* Input Selector */}
-                            <div className="mb-4">
-                                <label className="block text-[12px] text-gray-500 mb-1.5">
-                                    输入框 Selectors
-                                </label>
-                                <input
-                                    type="text"
-                                    value={inputSelector}
-                                    onChange={(e) => setInputSelector(e.target.value)}
-                                    className="w-full px-3 py-2 bg-white/40 dark:bg-black/20 border border-black/5 dark:border-white/10 rounded-lg text-xs font-mono text-gray-600 dark:text-gray-300 focus:ring-1 focus:ring-blue-500 outline-none"
-                                />
-                            </div>
-
-                            {/* Submit Selector */}
+                            {/* Name Input */}
                             <div>
-                                <label className="block text-[12px] text-gray-500 mb-1.5">
-                                    发送按钮 Selectors
+                                <label className="block text-[13px] font-medium text-mac-text-light dark:text-gray-300 mb-1.5">
+                                    服务名称
                                 </label>
                                 <input
                                     type="text"
-                                    value={submitSelector}
-                                    onChange={(e) => setSubmitSelector(e.target.value)}
-                                    className="w-full px-3 py-2 bg-white/40 dark:bg-black/20 border border-black/5 dark:border-white/10 rounded-lg text-xs font-mono text-gray-600 dark:text-gray-300 focus:ring-1 focus:ring-blue-500 outline-none"
+                                    value={name}
+                                    onChange={(e) => setName(e.target.value)}
+                                    placeholder="e.g., Kimi, Perplexity"
+                                    className="w-full px-3 py-2 bg-white/50 dark:bg-black/20 border border-black/10 dark:border-white/10 rounded-lg text-[15px] text-mac-text-light dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
                                 />
+                            </div>
+
+                            {/* URL Input */}
+                            <div>
+                                <label className="block text-[13px] font-medium text-mac-text-light dark:text-gray-300 mb-1.5">
+                                    网址 URL
+                                </label>
+                                <input
+                                    type="url"
+                                    value={url}
+                                    onChange={(e) => setUrl(e.target.value)}
+                                    placeholder="https://example.com"
+                                    className="w-full px-3 py-2 bg-white/50 dark:bg-black/20 border border-black/10 dark:border-white/10 rounded-lg text-[15px] text-mac-text-light dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all mb-2"
+                                />
+                                <p className="text-[12px] leading-5 text-gray-500 dark:text-gray-400">
+                                    请输入目标站点地址。选择器需要手动填写，建议在普通标签页打开目标网站后，用开发者工具复制输入框和发送按钮的 CSS Selector。
+                                </p>
+                            </div>
+
+                            {/* Advanced Section */}
+                            <div className="pt-4 border-t border-black/5 dark:border-white/5">
+                                <h4 className="text-[13px] font-medium text-gray-400 mb-3">高级配置</h4>
+
+                                {/* Input Selector */}
+                                <div className="mb-4">
+                                    <label className="block text-[12px] text-gray-500 mb-1.5">
+                                        输入框 Selectors
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={inputSelector}
+                                        onChange={(e) => setInputSelector(e.target.value)}
+                                        className="w-full px-3 py-2 bg-white/40 dark:bg-black/20 border border-black/5 dark:border-white/10 rounded-lg text-xs font-mono text-gray-600 dark:text-gray-300 focus:ring-1 focus:ring-blue-500 outline-none"
+                                    />
+                                </div>
+
+                                {/* Submit Selector */}
+                                <div>
+                                    <label className="block text-[12px] text-gray-500 mb-1.5">
+                                        发送按钮 Selectors
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={submitSelector}
+                                        onChange={(e) => setSubmitSelector(e.target.value)}
+                                        className="w-full px-3 py-2 bg-white/40 dark:bg-black/20 border border-black/5 dark:border-white/10 rounded-lg text-xs font-mono text-gray-600 dark:text-gray-300 focus:ring-1 focus:ring-blue-500 outline-none"
+                                    />
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     {/* Footer Buttons */}
-                    <div className="flex items-center justify-end gap-3 pt-8 pb-4">
+                    <div className="flex flex-shrink-0 items-center justify-end gap-3 border-t border-black/5 bg-mac-light/95 px-5 py-4 pb-[calc(1rem+env(safe-area-inset-bottom))] dark:border-white/5 dark:bg-[#1e1e1e]/95">
                         {editingId ? (
                             <>
                                 <button
