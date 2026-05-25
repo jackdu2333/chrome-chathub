@@ -13,11 +13,26 @@ export function UnifiedInput({
     isModelDrawerOpen,
     onToggleModelDrawer,
 }: UnifiedInputProps) {
-    const { isSyncEnabled, setSyncEnabled, reloadAllBots, draftContent, setDraftContent, activeBots } = useStore();
+    const { isSyncEnabled, setSyncEnabled, reloadAllBots, draftContent, setDraftContent, activeBots, isInputCollapsed, setInputCollapsed } = useStore();
     const [selectedFiles, setSelectedFiles] = useState<{ name: string; type: string; data: string }[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const [isFocused, setIsFocused] = useState(false);
+    const [isHovered, setIsHovered] = useState(false);
+
+    useEffect(() => {
+        const isDraftEmpty = !draftContent.trim() && selectedFiles.length === 0;
+        const needsCollapse = !isHovered && !isFocused && isDraftEmpty && !isModelDrawerOpen;
+
+        if (needsCollapse) {
+            const timer = setTimeout(() => {
+                setInputCollapsed(true);
+            }, 800);
+            return () => clearTimeout(timer);
+        } else {
+            setInputCollapsed(false);
+        }
+    }, [isHovered, isFocused, draftContent, selectedFiles.length, isModelDrawerOpen, setInputCollapsed]);
 
     const windowCount = activeBots.length;
 
@@ -103,13 +118,29 @@ export function UnifiedInput({
     }, [draftContent]);
 
     return (
-        <div className="input-safe-container">
+        <>
+            {/* Invisible Hover Sensor Zone at the absolute bottom of the screen */}
+            {isInputCollapsed && (
+                <div
+                    className="fixed bottom-0 left-0 right-0 h-4 z-[99] cursor-pointer pointer-events-auto"
+                    onMouseEnter={() => setIsHovered(true)}
+                />
+            )}
+
             <div
                 className={cn(
-                    "input-capsule",
-                    windowCount <= 1 ? "max-w-[1120px]" : "w-full"
+                    "input-safe-container transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)]",
+                    isInputCollapsed ? "translate-y-[calc(100%+24px)] opacity-0 pointer-events-none" : "translate-y-0 opacity-100"
                 )}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
             >
+                <div
+                    className={cn(
+                        "input-capsule",
+                        windowCount <= 1 ? "max-w-[1120px]" : "w-full"
+                    )}
+                >
                 <div className={cn(
                     "input-capsule-shell",
                     isFocused && "border-[#bec8d5]/25 shadow-[0_18px_42px_rgba(96,107,125,0.16)]"
@@ -242,5 +273,6 @@ export function UnifiedInput({
                 </div>
             </div>
         </div>
+        </>
     );
 }

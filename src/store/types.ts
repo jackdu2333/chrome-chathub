@@ -26,8 +26,10 @@ export interface BotSlice {
 export interface UISlice {
     gridLayout: 'single' | 'split' | 'grid';
     isDarkMode: boolean;
+    isInputCollapsed: boolean;
     setGridLayout: (layout: 'single' | 'split' | 'grid') => void;
     setDarkMode: (isDark: boolean) => void;
+    setInputCollapsed: (collapsed: boolean) => void;
 }
 
 export interface SettingsSlice {

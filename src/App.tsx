@@ -26,6 +26,7 @@ function App() {
 
   const activeBots = useStore((state) => state.activeBots);
   const availableAdapters = useStore((state) => state.availableAdapters);
+  const isInputCollapsed = useStore((state) => state.isInputCollapsed);
   const toggleBot = useStore((state) => state.toggleBot);
   const addCustomAdapter = useStore((state) => state.addCustomAdapter);
   const removeCustomAdapter = useStore((state) => state.removeCustomAdapter);
@@ -153,7 +154,12 @@ function App() {
 
       <div className="relative flex h-full min-w-0 flex-1 flex-col p-3">
         <div className="workspace-canvas relative flex h-full min-h-0 flex-col">
-          <div className="flex-1 min-h-0 overflow-hidden pb-[76px]">
+          <div
+            className={cn(
+              "flex-1 min-h-0 overflow-hidden transition-all duration-300",
+              isInputCollapsed ? "pb-[12px]" : "pb-[76px]"
+            )}
+          >
             {activeBots.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center px-6 text-center">
                 <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-[20px] border border-white/[0.08] bg-white/[0.03]">
