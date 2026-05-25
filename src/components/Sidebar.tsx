@@ -59,11 +59,11 @@ export function Sidebar({
 
     const getAdapterTone = (adapterId: string) => {
         const tones = [
-            "from-sky-400/18 to-blue-500/12 text-sky-100",
-            "from-cyan-400/18 to-teal-500/12 text-cyan-100",
-            "from-emerald-400/18 to-teal-500/12 text-emerald-100",
-            "from-amber-300/18 to-orange-500/12 text-amber-100",
-            "from-fuchsia-400/18 to-rose-500/12 text-fuchsia-100",
+            "from-[#d8cbc1]/24 to-[#efe5dd]/8 text-[#f7f3ef]",
+            "from-[#b7c8bf]/24 to-[#d7e0db]/8 text-[#f1f5f2]",
+            "from-[#cdc0c7]/22 to-[#e4dce2]/8 text-[#f5f0f4]",
+            "from-[#bec8d5]/22 to-[#dde4ed]/8 text-[#f2f5f8]",
+            "from-[#cec4b6]/22 to-[#e6ddd1]/8 text-[#f6f2ec]",
         ];
 
         const sum = Array.from(adapterId).reduce((acc, char) => acc + char.charCodeAt(0), 0);
@@ -106,7 +106,7 @@ export function Sidebar({
                         <div className="flex items-start justify-between gap-3">
                             <div className="flex items-center gap-3">
                                 <div className="flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/[0.07] bg-white/[0.035] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-                                    <Sparkles className="h-4.5 w-4.5 text-sky-300" />
+                                    <Sparkles className="h-4.5 w-4.5 text-[#c2ccd6]" />
                                 </div>
                                 <div>
                                     <div className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
@@ -157,14 +157,14 @@ export function Sidebar({
                                     title={adapter.name}
                                 >
                                     {isActive && (
-                                        <div className="absolute left-0 top-1/2 h-7 w-[2px] -translate-y-1/2 rounded-full bg-sky-300 shadow-[0_0_12px_rgba(117,180,255,0.45)]" />
+                                        <div className="absolute left-0 top-1/2 h-7 w-[2px] -translate-y-1/2 rounded-full bg-[#bec8d5] shadow-[0_0_12px_rgba(190,200,213,0.32)]" />
                                     )}
 
                                     <div className={cn(
                                         "flex h-10 w-10 items-center justify-center rounded-[14px] border text-sm font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]",
                                         "bg-gradient-to-br",
                                         tone,
-                                        isActive ? "border-sky-300/20" : "border-white/[0.08]"
+                                        isActive ? "border-[#bec8d5]/25" : "border-white/[0.08]"
                                     )}>
                                         {initials}
                                     </div>

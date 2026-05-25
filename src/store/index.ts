@@ -18,17 +18,10 @@ export const useStore = create<AppState>((...a) => ({
     // Load custom adapters first
     await useStore.getState().loadCustomAdapters();
     await useStore.getState().loadPreferences();
+    await useStore.getState().loadSettings();
     // Prompt library has been removed; clear stale prompt storage once during startup.
     await chrome.storage.local.remove(['prompts']);
     // Then load active bots (needs adapters to be loaded)
     await useStore.getState().loadActiveBots();
 })();
 
-// Listen for system theme changes
-if (typeof window !== 'undefined') {
-    const darkModeQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    darkModeQuery.addEventListener('change', (e) => {
-        useStore.getState().setDarkMode(e.matches);
-        console.log('[ChatHub] Theme changed to:', e.matches ? 'dark' : 'light');
-    });
-}

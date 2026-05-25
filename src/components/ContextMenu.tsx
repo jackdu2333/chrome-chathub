@@ -61,7 +61,7 @@ export function ContextMenuItem({ onClick, icon, children, danger, className }: 
                 "mx-1.5 my-0.5 px-2 py-1.5 text-[13px] flex items-center gap-2 rounded-[6px] transition-colors text-left font-medium select-none",
                 danger
                     ? "text-red-500 hover:bg-red-500 hover:text-white dark:text-red-400 dark:hover:bg-red-500/90 dark:hover:text-white"
-                    : "text-gray-700 dark:text-gray-200 hover:bg-blue-500 hover:text-white dark:hover:bg-blue-500",
+                    : "text-gray-700 dark:text-gray-200 hover:bg-[#bec8d5] hover:text-slate-950 dark:hover:bg-[#bec8d5]",
                 className
             )}
         >

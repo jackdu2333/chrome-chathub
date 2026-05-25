@@ -30,6 +30,45 @@ function App() {
   const addCustomAdapter = useStore((state) => state.addCustomAdapter);
   const removeCustomAdapter = useStore((state) => state.removeCustomAdapter);
   const updateCustomAdapter = useStore((state) => state.updateCustomAdapter);
+  const uiThemeVariant = useStore((state) => state.uiThemeVariant);
+  const themeMode = useStore((state) => state.themeMode || 'system');
+  const setDarkMode = useStore((state) => state.setDarkMode);
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    
+    const updateTheme = () => {
+      let isDark = false;
+      if (themeMode === 'system') {
+        isDark = mediaQuery.matches;
+      } else {
+        isDark = themeMode === 'dark';
+      }
+      
+      if (isDark) {
+        root.classList.add('dark');
+        document.body.classList.add('dark');
+      } else {
+        root.classList.remove('dark');
+        document.body.classList.remove('dark');
+      }
+      setDarkMode(isDark);
+    };
+
+    updateTheme();
+
+    const handleThemeChange = () => {
+      if (themeMode === 'system') {
+        updateTheme();
+      }
+    };
+
+    mediaQuery.addEventListener('change', handleThemeChange);
+    return () => {
+      mediaQuery.removeEventListener('change', handleThemeChange);
+    };
+  }, [themeMode, setDarkMode]);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [focusedBotId, setFocusedBotId] = useState<string | null>(null);
@@ -60,6 +99,13 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isModelDrawerOpen]);
 
+  useEffect(() => {
+    document.body.classList.toggle('ui-variant-bold', uiThemeVariant === 'bold');
+    return () => {
+      document.body.classList.remove('ui-variant-bold');
+    };
+  }, [uiThemeVariant]);
+
   const getDynamicGridClass = () => {
     const count = activeBots.length;
     if (count <= 1) return "chat-grid-cols-1";
@@ -72,13 +118,28 @@ function App() {
     <div
       className={cn(
         "relative flex h-screen w-screen overflow-hidden font-system transition-colors duration-300",
-        "bg-transparent text-slate-100"
+        "bg-transparent text-[var(--text-strong)]"
       )}
     >
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute left-[-10%] top-[-10%] h-[380px] w-[380px] rounded-full bg-sky-500/6 blur-3xl" />
-        <div className="absolute right-[-6%] top-[6%] h-[240px] w-[240px] rounded-full bg-blue-500/6 blur-3xl" />
-        <div className="absolute bottom-[-24%] left-[32%] h-[320px] w-[320px] rounded-full bg-cyan-400/3 blur-3xl" />
+        <div
+          className={cn(
+            "absolute left-[-12%] top-[-12%] h-[420px] w-[420px] rounded-full blur-3xl",
+            uiThemeVariant === 'bold' ? "bg-[#382A2E]/32" : "bg-[#d8cbc1]/14"
+          )}
+        />
+        <div
+          className={cn(
+            "absolute right-[-8%] top-[4%] h-[280px] w-[280px] rounded-full blur-3xl",
+            uiThemeVariant === 'bold' ? "bg-[#26332A]/32" : "bg-[#b7c8bf]/12"
+          )}
+        />
+        <div
+          className={cn(
+            "absolute bottom-[-26%] left-[30%] h-[360px] w-[360px] rounded-full blur-3xl",
+            uiThemeVariant === 'bold' ? "bg-[#36312D]/30" : "bg-[#bec8d5]/10"
+          )}
+        />
       </div>
 
       <Sidebar
@@ -96,7 +157,7 @@ function App() {
             {activeBots.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center px-6 text-center">
                 <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-[20px] border border-white/[0.08] bg-white/[0.03]">
-                  <Layers3 className="h-7 w-7 text-sky-300" />
+                  <Layers3 className={cn("h-7 w-7", uiThemeVariant === 'bold' ? "text-[#B5C4D1]" : "text-[#c2ccd6]")} />
                 </div>
                 <h2 className="font-display text-[28px] font-semibold text-white">
                   选择模型开始并行对话
@@ -187,7 +248,12 @@ function App() {
 
       {focusedBotId && activeBots.length > 1 && (
         <div
-          className="fixed inset-0 z-30 pointer-events-none bg-[radial-gradient(circle_at_center,rgba(2,6,23,0.18),rgba(2,6,23,0.62))] transition-opacity duration-300"
+          className={cn(
+            "fixed inset-0 z-30 pointer-events-none transition-opacity duration-300",
+            uiThemeVariant === 'bold'
+              ? "bg-[radial-gradient(circle_at_center,rgba(181,196,209,0.12),rgba(34,43,54,0.72))]"
+              : "bg-[radial-gradient(circle_at_center,rgba(214,208,201,0.08),rgba(7,6,10,0.58))]"
+          )}
           aria-hidden="true"
         />
       )}

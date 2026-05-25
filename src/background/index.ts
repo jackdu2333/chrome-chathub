@@ -159,7 +159,77 @@ chrome.runtime.onStartup.addListener(() => {
   void reloadExtensionConfig();
 });
 
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+function isAIPlatform(url: string, adapters: ServiceAdapter[]): boolean {
+  try {
+    const hostname = new URL(url).hostname;
+    return adapters.some(adapter => {
+      try {
+        const adapterHostname = new URL(adapter.url).hostname;
+        return hostname === adapterHostname || hostname.endsWith('.' + adapterHostname);
+      } catch {
+        return false;
+      }
+    });
+  } catch {
+    return false;
+  }
+}
+
+async function getAITabsInWindow(windowId: number | undefined, adapters: ServiceAdapter[]): Promise<chrome.tabs.Tab[]> {
+  if (windowId === undefined) return [];
+  const tabs = await chrome.tabs.query({ windowId });
+  return tabs.filter(tab => tab.url && isAIPlatform(tab.url, adapters));
+}
+
+async function broadcastToAITabs(text: string, autoSubmit: boolean, windowId: number | undefined) {
+  const adapters = await getAllAdapters();
+  const tabs = await getAITabsInWindow(windowId, adapters);
+  
+  const results = [];
+  for (const tab of tabs) {
+    if (!tab.id) continue;
+    try {
+      const commandId = Math.random().toString(36).substring(7);
+      const response = await chrome.tabs.sendMessage(tab.id, {
+        type: 'EXECUTE_COMMAND',
+        payload: {
+          commandId,
+          text,
+          autoSubmit,
+          timestamp: Date.now()
+        }
+      }) as { success: boolean; error?: string } | undefined;
+
+      if (response && response.success) {
+        results.push({ tabId: tab.id, success: true });
+      } else {
+        results.push({ tabId: tab.id, success: false, error: response?.error || 'Execution failed' });
+      }
+    } catch (err) {
+      console.warn(`[ChatHub] Failed to send message to tab ${tab.id}:`, err);
+      results.push({ tabId: tab.id, success: false, error: err instanceof Error ? err.message : 'Unknown error' });
+    }
+  }
+
+  // Notify tabs of results (e.g. to show Success/Failed toasts)
+  for (const tab of tabs) {
+    if (!tab.id) continue;
+    try {
+      await chrome.tabs.sendMessage(tab.id, {
+        type: 'BROADCAST_RESULT',
+        payload: {
+          results,
+          totalSent: results.filter(r => r.success).length,
+          totalFailed: results.filter(r => !r.success).length
+        }
+      });
+    } catch {
+      // Ignore
+    }
+  }
+}
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.type === 'RELOAD_EXTENSION_CONFIG') {
     void reloadExtensionConfig()
       .then(() => sendResponse({ success: true }))
@@ -169,6 +239,32 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
           error: error instanceof Error ? error.message : 'UNKNOWN_ERROR',
         });
       });
+    return true;
+  }
+
+  if (message?.type === 'BROADCAST_MESSAGE') {
+    const { text, autoSubmit } = message.payload || {};
+    const windowId = sender.tab?.windowId;
+    broadcastToAITabs(text, autoSubmit ?? true, windowId)
+      .then(() => sendResponse({ success: true }))
+      .catch((error) => sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }));
+    return true;
+  }
+
+  if (message?.type === 'GET_STATUS') {
+    const windowId = sender.tab?.windowId;
+    getAllAdapters().then(adapters => {
+      getAITabsInWindow(windowId, adapters).then(tabs => {
+        sendResponse({
+          tabCount: tabs.length,
+          platforms: tabs.map(t => ({
+            id: t.id,
+            url: t.url || '',
+            title: t.title || ''
+          }))
+        });
+      });
+    });
     return true;
   }
 

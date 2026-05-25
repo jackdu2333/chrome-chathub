@@ -105,16 +105,16 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, className, 
                     ? '不支持'
                     : '准备中';
     const statusClassName = isGeminiLoginRequired
-        ? 'bg-amber-300 ring-[3px] ring-amber-300/12'
+        ? 'bg-[#d6c6a9] ring-[3px] ring-[rgba(214,198,169,0.12)]'
         : statusTone === 'ready'
-        ? 'bg-emerald-400 ring-[3px] ring-emerald-400/12'
+        ? 'bg-[#b7c8bf] ring-[3px] ring-[rgba(183,200,191,0.12)]'
         : statusTone === 'busy'
-            ? 'bg-sky-400 ring-[3px] ring-sky-400/12'
+            ? 'bg-[#bec8d5] ring-[3px] ring-[rgba(190,200,213,0.12)]'
             : statusTone === 'error'
-                ? 'bg-rose-400 ring-[3px] ring-rose-400/12'
+                ? 'bg-[#cfaeae] ring-[3px] ring-[rgba(207,174,174,0.12)]'
                 : statusTone === 'unsupported'
                     ? 'bg-slate-500'
-                    : 'bg-amber-300 ring-[3px] ring-amber-300/12';
+                    : 'bg-[#d6c6a9] ring-[3px] ring-[rgba(214,198,169,0.12)]';
 
     return (
         <div
@@ -152,7 +152,7 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, className, 
                     </div>
 
                     <div className="mr-auto flex min-w-0 items-center gap-2">
-                        <div className="flex h-6.5 w-6.5 items-center justify-center rounded-[9px] border border-white/[0.07] bg-gradient-to-br from-sky-400/12 via-blue-500/10 to-cyan-400/4 text-[10px] font-semibold text-white/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+                        <div className="flex h-6.5 w-6.5 items-center justify-center rounded-[9px] border border-white/[0.07] bg-gradient-to-br from-[#d8cbc1]/22 via-[#cdc0c7]/12 to-[#bec8d5]/12 text-[10px] font-semibold text-white/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
                             {initials}
                         </div>
                         <div
@@ -189,7 +189,7 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, className, 
 
                         <button
                             onClick={onRemove}
-                            className="btn-icon scale-[0.92] text-slate-400 hover:bg-rose-500/[0.12] hover:text-rose-200"
+                            className="btn-icon scale-[0.92] text-slate-400 hover:bg-[#cfaeae]/[0.12] hover:text-[#f1dede]"
                             title="关闭窗口"
                         >
                             <XCircle className="w-4 h-4" />
@@ -197,7 +197,7 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, className, 
                     </div>
                 </div>
 
-                <div className="relative flex-1 min-h-0 bg-[#050a12]">
+                <div className="relative flex-1 min-h-0 bg-transparent">
                     <iframe
                         key={`${bot.instanceId}-${reloadKey}`}
                         ref={iframeRef}

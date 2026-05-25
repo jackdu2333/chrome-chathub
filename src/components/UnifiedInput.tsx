@@ -112,7 +112,7 @@ export function UnifiedInput({
             >
                 <div className={cn(
                     "input-capsule-shell",
-                    isFocused && "border-sky-400/25 shadow-[0_18px_42px_rgba(9,45,99,0.2)]"
+                    isFocused && "border-[#bec8d5]/25 shadow-[0_18px_42px_rgba(96,107,125,0.16)]"
                 )}>
                     <input
                         type="file"
@@ -130,7 +130,7 @@ export function UnifiedInput({
                                         key={index}
                                         className="flex max-w-[220px] items-center gap-2 rounded-full border border-white/[0.07] bg-white/[0.045] px-3 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
                                     >
-                                        <div className="flex-shrink-0 text-sky-300">
+                                        <div className="flex-shrink-0 text-[#c2ccd6]">
                                             {file.type.startsWith('image/') ? <ImageIcon className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
                                         </div>
                                         <span className="truncate text-sm text-slate-200">{file.name}</span>
@@ -151,7 +151,7 @@ export function UnifiedInput({
                                     onClick={onToggleModelDrawer}
                                     className={cn(
                                         "btn-icon flex h-9 items-center justify-center gap-2 px-3 text-slate-200",
-                                        isModelDrawerOpen && "border-white/[0.05] bg-[rgba(92,127,184,0.18)] text-[#d8e5ff]"
+                                        isModelDrawerOpen && "border-white/[0.05] bg-[rgba(183,200,191,0.16)] text-[#f1f6f3]"
                                     )}
                                     title="模型栏"
                                 >
@@ -164,7 +164,7 @@ export function UnifiedInput({
                                     className={cn(
                                         "btn-icon flex h-9 items-center justify-center gap-2 px-3",
                                         isSyncEnabled
-                                            ? "border-white/[0.05] bg-[rgba(92,127,184,0.18)] text-[#d8e5ff]"
+                                            ? "border-white/[0.05] bg-[rgba(183,200,191,0.16)] text-[#f1f6f3]"
                                             : "text-slate-400"
                                     )}
                                     title={isSyncEnabled ? "同步发送开启" : "同步发送关闭"}
@@ -186,7 +186,7 @@ export function UnifiedInput({
                                 className={cn(
                                     "flex min-w-0 flex-1 items-center gap-3 rounded-[14px] border px-3 py-2 transition-all duration-300",
                                     "border-white/[0.07] bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.02))] shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]",
-                                    isFocused && "border-[rgba(121,154,207,0.22)] bg-[linear-gradient(180deg,rgba(87,119,174,0.08),rgba(255,255,255,0.028))]"
+                                    isFocused && "border-[rgba(190,200,213,0.22)] bg-[linear-gradient(180deg,rgba(190,200,213,0.075),rgba(255,255,255,0.028))]"
                                 )}
                             >
                                 <textarea

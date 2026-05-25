@@ -1,5 +1,7 @@
 import { AdapterPreference, ChatBot, ServiceAdapter } from '../types';
 
+export type UIThemeVariant = 'morandi' | 'bold';
+
 export interface BotSlice {
     activeBots: ChatBot[];
     availableAdapters: ServiceAdapter[];
@@ -31,8 +33,14 @@ export interface UISlice {
 export interface SettingsSlice {
     isSyncEnabled: boolean;
     draftContent: string;
+    uiThemeVariant: UIThemeVariant;
+    themeMode: 'light' | 'dark' | 'system';
     setSyncEnabled: (enabled: boolean) => void;
     setDraftContent: (content: string) => void;
+    setUIThemeVariant: (variant: UIThemeVariant) => void;
+    setThemeMode: (mode: 'light' | 'dark' | 'system') => void;
+    loadSettings: () => Promise<void>;
 }
 
 export type AppState = BotSlice & UISlice & SettingsSlice;
+

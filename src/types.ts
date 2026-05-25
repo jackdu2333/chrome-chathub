@@ -78,6 +78,7 @@ export interface StorageData {
     customAdapters?: ServiceAdapter[];
     activeBots?: ChatBot[];
     isSyncEnabled?: boolean;
+    uiThemeVariant?: 'morandi' | 'bold';
     // Removed AdapterPreference as it's separate? No, keep it.
     adapterPreferences?: AdapterPreference[];
     activeBotIds?: string[]; // Actually stored key

@@ -3,6 +3,7 @@ import { X, Plus, Edit2, Trash2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { ServiceAdapter } from '../types';
 import { DEFAULT_ADAPTERS } from '../types';
+import { useStore } from '../store';
 
 interface SettingsProps {
     isOpen: boolean;
@@ -19,6 +20,10 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
     const [inputSelector, setInputSelector] = useState('textarea, input[type="text"], [contenteditable="true"]');
     const [submitSelector, setSubmitSelector] = useState('button[type="submit"]');
     const [editingId, setEditingId] = useState<string | null>(null);
+    const uiThemeVariant = useStore((state) => state.uiThemeVariant);
+    const setUIThemeVariant = useStore((state) => state.setUIThemeVariant);
+    const themeMode = useStore((state) => state.themeMode || 'system');
+    const setThemeMode = useStore((state) => state.setThemeMode);
 
     // Get custom adapters (not default ones)
     const customAdapters = adapters.filter(a =>
@@ -133,6 +138,125 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
                 {/* Content */}
                 <div className="flex flex-1 min-h-0 flex-col">
                     <div className="flex-1 overflow-y-auto px-5 pt-5 pb-6 scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-gray-600">
+                        {/* 主题模式 */}
+                        <div className="mb-5 rounded-xl border border-black/5 bg-white/45 p-4 dark:border-white/10 dark:bg-white/5">
+                            <h3 className="text-[13px] font-medium uppercase tracking-wide text-gray-500">
+                                主题模式
+                            </h3>
+                            <p className="mt-2 text-[12px] leading-5 text-gray-500 dark:text-gray-400">
+                                选择扩展的颜色外观（可强制开启浅色模式）。
+                            </p>
+                            <div className="mt-3 grid grid-cols-3 gap-2">
+                                <button
+                                    onClick={() => setThemeMode('light')}
+                                    className={cn(
+                                        "rounded-lg border py-2 text-center transition-all text-[13px] font-medium",
+                                        themeMode === 'light'
+                                            ? "border-[#bec8d5]/45 bg-[#bec8d5]/12 ring-1 ring-[#bec8d5]/40 text-mac-text-light dark:text-mac-text-dark"
+                                            : "border-black/8 bg-white/40 hover:border-black/15 dark:border-white/10 dark:bg-white/5 dark:hover:border-white/20 text-gray-500 dark:text-gray-400"
+                                    )}
+                                >
+                                    浅色
+                                </button>
+                                <button
+                                    onClick={() => setThemeMode('dark')}
+                                    className={cn(
+                                        "rounded-lg border py-2 text-center transition-all text-[13px] font-medium",
+                                        themeMode === 'dark'
+                                            ? "border-[#bec8d5]/45 bg-[#bec8d5]/12 ring-1 ring-[#bec8d5]/40 text-mac-text-light dark:text-mac-text-dark"
+                                            : "border-black/8 bg-white/40 hover:border-black/15 dark:border-white/10 dark:bg-white/5 dark:hover:border-white/20 text-gray-500 dark:text-gray-400"
+                                    )}
+                                >
+                                    深色
+                                </button>
+                                <button
+                                    onClick={() => setThemeMode('system')}
+                                    className={cn(
+                                        "rounded-lg border py-2 text-center transition-all text-[13px] font-medium",
+                                        themeMode === 'system'
+                                            ? "border-[#bec8d5]/45 bg-[#bec8d5]/12 ring-1 ring-[#bec8d5]/40 text-mac-text-light dark:text-mac-text-dark"
+                                            : "border-black/8 bg-white/40 hover:border-black/15 dark:border-white/10 dark:bg-white/5 dark:hover:border-white/20 text-gray-500 dark:text-gray-400"
+                                    )}
+                                >
+                                    跟随系统
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* UI 风格 */}
+                        <div className="mb-5 rounded-xl border border-black/5 bg-white/45 p-4 dark:border-white/10 dark:bg-white/5">
+                            <h3 className="text-[13px] font-medium uppercase tracking-wide text-gray-500">
+                                UI 风格
+                            </h3>
+                            <p className="mt-2 text-[12px] leading-5 text-gray-500 dark:text-gray-400">
+                                当前支持两版界面，可随时切换。`当前版` 保留现有莫兰迪质感，`大胆版` 使用更强的层次。
+                            </p>
+                            <div className="mt-4 grid grid-cols-1 gap-3">
+                                <button
+                                    onClick={() => setUIThemeVariant('morandi')}
+                                    className={cn(
+                                        "rounded-xl border px-3 py-3 text-left transition-all",
+                                        uiThemeVariant === 'morandi'
+                                            ? "border-[#bec8d5]/45 bg-[#bec8d5]/12 ring-1 ring-[#bec8d5]/40"
+                                            : "border-black/8 bg-white/40 hover:border-black/15 dark:border-white/10 dark:bg-white/5 dark:hover:border-white/20"
+                                    )}
+                                >
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div>
+                                            <div className="text-[14px] font-semibold text-mac-text-light dark:text-mac-text-dark">
+                                                当前版（莫兰迪）
+                                            </div>
+                                            <div className="mt-1 text-[12px] text-gray-500 dark:text-gray-400">
+                                                克制、清新、长期使用舒适。
+                                            </div>
+                                        </div>
+                                        {uiThemeVariant === 'morandi' && (
+                                            <span className="rounded-full border border-[#bec8d5]/50 bg-[#bec8d5]/18 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#8fa1b4]">
+                                                当前
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="mt-3 flex gap-2">
+                                        <span className="h-4 w-8 rounded-full bg-[#B5C4D1]" />
+                                        <span className="h-4 w-8 rounded-full bg-[#C0D0C3]" />
+                                        <span className="h-4 w-8 rounded-full bg-[#E2DCD3]" />
+                                        <span className="h-4 w-8 rounded-full bg-[#DBC5C6]" />
+                                    </div>
+                                </button>
+                                <button
+                                    onClick={() => setUIThemeVariant('bold')}
+                                    className={cn(
+                                        "rounded-xl border px-3 py-3 text-left transition-all",
+                                        uiThemeVariant === 'bold'
+                                            ? "border-[#B5C4D1]/40 bg-[#222B36]/60 ring-1 ring-[#B5C4D1]/35"
+                                            : "border-black/8 bg-white/40 hover:border-black/15 dark:border-white/10 dark:bg-white/5 dark:hover:border-white/20"
+                                    )}
+                                >
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div>
+                                            <div className="text-[14px] font-semibold text-mac-text-light dark:text-mac-text-dark">
+                                                大胆版（高对比莫兰迪）
+                                            </div>
+                                            <div className="mt-1 text-[12px] text-gray-500 dark:text-gray-400">
+                                                夜间莫兰迪护眼版，层次更大胆但不刺眼。
+                                            </div>
+                                        </div>
+                                        {uiThemeVariant === 'bold' && (
+                                            <span className="rounded-full border border-[#B5C4D1]/45 bg-[#222B36]/70 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-[#C0D0C3]">
+                                                当前
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="mt-3 flex gap-2">
+                                        <span className="h-4 w-8 rounded-full bg-[#222B36]" />
+                                        <span className="h-4 w-8 rounded-full bg-[#26332A]" />
+                                        <span className="h-4 w-8 rounded-full bg-[#36312D]" />
+                                        <span className="h-4 w-8 rounded-full bg-[#382A2E]" />
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+
                         {/* Custom Services List */}
                         {customAdapters.length > 0 && !editingId && (
                             <div className="space-y-4 mb-8">
