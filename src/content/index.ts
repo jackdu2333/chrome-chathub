@@ -1,5 +1,4 @@
 import { DEFAULT_ADAPTERS, ServiceAdapter, UserMessagePayload } from '../types';
-import styles from './input-bar.css?inline';
 import {
     CONTENT_MESSAGE_SOURCE,
     DriverCapabilities,
@@ -175,9 +174,7 @@ const adapterReadyPromise = (async () => {
             console.log('[ChatHub Content] ✅ Activated driver:', currentDriver.id);
             console.log('[ChatHub Content] Input selector:', selectorSpecToDebugString(currentAdapter.inputSelector));
             console.log('[ChatHub Content] Submit selector:', selectorSpecToDebugString(currentAdapter.submitSelector));
-            
-            // Inject unified input bar for native split views
-            injectBottomInputBar();
+
 
             void waitForCurrentAdapterReady(true).catch((error) => {
                 console.warn('[ChatHub Content] Ready probe failed:', error);
@@ -196,8 +193,7 @@ const adapterReadyPromise = (async () => {
         if (currentAdapter) {
             currentDriver = resolveDriver(currentAdapter);
 
-            // Inject unified input bar for native split views
-            injectBottomInputBar();
+
 
             void waitForCurrentAdapterReady(true).catch((error) => {
                 console.warn('[ChatHub Content] Ready probe failed:', error);
@@ -453,205 +449,4 @@ function showNotification(message: string, type: 'success' | 'warning' | 'error'
     }, 2000);
 }
 
-// ─── Bottom Input Bar Injection ──────────────────────────────
-function injectBottomInputBar() {
-    if (window !== window.top) return; // Only top-level windows
-    if (document.getElementById('jackdu-chathub-bar')) return; // Avoid duplicate injection
 
-    // Add extra padding to body to prevent input bar from covering site contents
-    const bodyPadding = document.createElement('div');
-    bodyPadding.style.height = '90px';
-    bodyPadding.style.width = '100%';
-    bodyPadding.style.display = 'block';
-    bodyPadding.style.clear = 'both';
-    document.body.appendChild(bodyPadding);
-
-    const bar = document.createElement('div');
-    bar.id = 'jackdu-chathub-bar';
-    bar.className = 'jackdu-chathub-bar';
-    
-    bar.innerHTML = `
-        <div class="jackdu-chathub-bar-inner">
-            <div class="jackdu-chathub-bar-header">
-                <div class="jackdu-chathub-bar-logo">
-                    <span class="jackdu-chathub-logo-icon">⚡</span>
-                    <span class="jackdu-chathub-logo-text">JackduChatHub</span>
-                </div>
-                <div class="jackdu-chathub-bar-status">
-                    <span class="jackdu-chathub-status-dot"></span>
-                    <span class="jackdu-chathub-status-text">连接中...</span>
-                </div>
-                <button class="jackdu-chathub-bar-toggle" title="收起/展开">
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                        <path d="M4 6l4 4 4-4" stroke="currentColor" stroke-width="2" fill="none"/>
-                    </svg>
-                </button>
-            </div>
-            <div class="jackdu-chathub-bar-body">
-                <div class="jackdu-chathub-input-wrapper">
-                    <textarea
-                        class="jackdu-chathub-textarea"
-                        placeholder="输入消息，发送到所有 AI (Cmd+Enter)..."
-                        rows="1"
-                    ></textarea>
-                    <button class="jackdu-chathub-send-btn" title="发送到所有 AI">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/>
-                        </svg>
-                    </button>
-                </div>
-                <div class="jackdu-chathub-platforms"></div>
-            </div>
-        </div>
-    `;
-
-    document.body.appendChild(bar);
-
-    // Injected stylesheet
-    const style = document.createElement('style');
-    style.id = 'jackdu-chathub-styles';
-    style.textContent = styles;
-    document.head.appendChild(style);
-
-    // DOM Elements
-    const textarea = bar.querySelector('.jackdu-chathub-textarea') as HTMLTextAreaElement;
-    const sendBtn = bar.querySelector('.jackdu-chathub-send-btn') as HTMLButtonElement;
-    const toggleBtn = bar.querySelector('.jackdu-chathub-bar-toggle') as HTMLButtonElement;
-    const statusDot = bar.querySelector('.jackdu-chathub-status-dot') as HTMLElement;
-    const statusText = bar.querySelector('.jackdu-chathub-status-text') as HTMLElement;
-    const platformsContainer = bar.querySelector('.jackdu-chathub-platforms') as HTMLElement;
-
-    // Textarea resize
-    const autoResize = () => {
-        textarea.style.height = 'auto';
-        const maxHeight = 160;
-        const newHeight = Math.min(textarea.scrollHeight, maxHeight);
-        textarea.style.height = newHeight + 'px';
-        textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden';
-    };
-    textarea.addEventListener('input', autoResize);
-
-    // Send logic
-    let isSending = false;
-    const send = () => {
-        const text = textarea.value.trim();
-        if (!text || isSending) return;
-
-        isSending = true;
-        sendBtn.disabled = true;
-        sendBtn.classList.add('jackdu-chathub-sending');
-
-        chrome.runtime.sendMessage({
-            type: 'BROADCAST_MESSAGE',
-            payload: { text, autoSubmit: true }
-        }, () => {
-            isSending = false;
-            sendBtn.disabled = false;
-            sendBtn.classList.remove('jackdu-chathub-sending');
-            if (chrome.runtime.lastError) {
-                showNotification('发送错误: ' + chrome.runtime.lastError.message, 'error');
-                return;
-            }
-            textarea.value = '';
-            autoResize();
-        });
-    };
-
-    sendBtn.addEventListener('click', (e) => {
-        e.preventDefault();
-        send();
-    });
-
-    textarea.addEventListener('keydown', (e) => {
-        e.stopPropagation();
-        if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
-            e.preventDefault();
-            send();
-        }
-    });
-
-    textarea.addEventListener('keyup', (e) => {
-        e.stopPropagation();
-    });
-
-    textarea.addEventListener('keypress', (e) => {
-        e.stopPropagation();
-    });
-
-    // Toggle collapse
-    let isCollapsed = false;
-    toggleBtn.addEventListener('click', () => {
-        isCollapsed = !isCollapsed;
-        bar.classList.toggle('collapsed', isCollapsed);
-        toggleBtn.classList.toggle('jackdu-chathub-rotated', isCollapsed);
-    });
-
-    // Icons map
-    const platformInfo: Record<string, { name: string; icon: string }> = {
-        'chatgpt.com': { name: 'ChatGPT', icon: '💚' },
-        'chat.openai.com': { name: 'ChatGPT', icon: '💚' },
-        'claude.ai': { name: 'Claude', icon: '🟠' },
-        'gemini.google.com': { name: 'Gemini', icon: '🔵' },
-        'chat.deepseek.com': { name: 'DeepSeek', icon: '🐋' },
-        'grok.com': { name: 'Grok', icon: '⚡' },
-        'yiyan.baidu.com': { name: '文心一言', icon: '百度' },
-        'tongyi.aliyun.com': { name: '通义千问', icon: '🟣' },
-        'qianwen.aliyun.com': { name: '通义千问', icon: '🟣' },
-        'chatglm.cn': { name: '智谱清言', icon: '🔮' },
-        'doubao.com': { name: '豆包', icon: '🫘' },
-        'www.doubao.com': { name: '豆包', icon: '🫘' },
-        'ai.xiaomi.com': { name: '小米AI', icon: '🍊' },
-    };
-
-    const updatePlatformBadges = (platforms: { id: number; url: string; title: string }[]) => {
-        platformsContainer.innerHTML = '';
-        const seen = new Set<string>();
-        platforms.forEach(p => {
-            let hostname = '';
-            try {
-                hostname = new URL(p.url).hostname;
-            } catch {
-                hostname = p.url;
-            }
-            const matchedKey = Object.keys(platformInfo).find(key => hostname === key || hostname.endsWith('.' + key)) || hostname;
-            const info = platformInfo[matchedKey] || { name: matchedKey.replace(/^www\./, ''), icon: '🤖' };
-            if (seen.has(info.name)) return;
-            seen.add(info.name);
-
-            const badge = document.createElement('span');
-            badge.className = 'jackdu-chathub-platform-badge';
-            badge.textContent = `${info.icon} ${info.name}`;
-            platformsContainer.appendChild(badge);
-        });
-    };
-
-    let interval: any;
-    const updateStatus = () => {
-        try {
-            if (!chrome.runtime?.id) {
-                if (interval) clearInterval(interval);
-                return;
-            }
-            chrome.runtime.sendMessage({ type: 'GET_STATUS' }, (response) => {
-                if (chrome.runtime.lastError || !response) {
-                    statusText.textContent = '连接中断';
-                    statusDot.className = 'jackdu-chathub-status-dot';
-                    return;
-                }
-                const count = response.tabCount || 0;
-                statusText.textContent = count > 0 ? `已连接 ${count} 个 AI` : '未检测到 AI';
-                statusDot.className = 'jackdu-chathub-status-dot' + (count > 0 ? ' active' : '');
-                updatePlatformBadges(response.platforms || []);
-            });
-        } catch (err) {
-            console.warn('[JackduChatHub] Extension context invalidated, stopping status updates.');
-            if (interval) clearInterval(interval);
-            statusText.textContent = '连接已断开';
-            statusDot.className = 'jackdu-chathub-status-dot';
-        }
-    };
-
-    updateStatus();
-    interval = setInterval(updateStatus, 3000);
-    window.addEventListener('beforeunload', () => clearInterval(interval));
-}
