@@ -114,6 +114,7 @@ async function waitForCurrentAdapterReady(forceRefresh = false) {
         const selectorDebug = selectorSpecToDebugString(selector);
         const startedAt = Date.now();
 
+        // 1. Rapid polling phase (15 seconds)
         while (Date.now() - startedAt < 15000) {
             try {
                 await waitForElement(selector, {
@@ -138,8 +139,35 @@ async function waitForCurrentAdapterReady(forceRefresh = false) {
             }
         }
 
+        // 2. Timeout reached, emit error but continue slow polling in background
         emitFrameStatus('error', 'READY_TIMEOUT', selectorDebug);
-        throw new Error('READY_TIMEOUT');
+        console.warn('[ChatHub Content] Ready probe timed out. Switching to slow polling in background.');
+
+        while (true) {
+            try {
+                await sleep(2000);
+                await waitForElement(selector, {
+                    timeoutMs: 500,
+                    intervalMs: 250,
+                    visible: false,
+                });
+
+                if (currentAdapter?.readyActions?.length) {
+                    await executeAdapterActions(currentAdapter.readyActions);
+                    await waitForElement(selector, {
+                        timeoutMs: 500,
+                        intervalMs: 250,
+                        visible: false,
+                    });
+                }
+
+                emitFrameStatus('ready');
+                console.log('[ChatHub Content] Ready probe recovered in background!');
+                return;
+            } catch {
+                // Keep checking
+            }
+        }
     })();
 
     try {
@@ -175,6 +203,9 @@ const adapterReadyPromise = (async () => {
             console.log('[ChatHub Content] Input selector:', selectorSpecToDebugString(currentAdapter.inputSelector));
             console.log('[ChatHub Content] Submit selector:', selectorSpecToDebugString(currentAdapter.submitSelector));
 
+            window.addEventListener('beforeunload', () => {
+                emitFrameStatus('booting');
+            });
 
             void waitForCurrentAdapterReady(true).catch((error) => {
                 console.warn('[ChatHub Content] Ready probe failed:', error);
@@ -193,7 +224,9 @@ const adapterReadyPromise = (async () => {
         if (currentAdapter) {
             currentDriver = resolveDriver(currentAdapter);
 
-
+            window.addEventListener('beforeunload', () => {
+                emitFrameStatus('booting');
+            });
 
             void waitForCurrentAdapterReady(true).catch((error) => {
                 console.warn('[ChatHub Content] Ready probe failed:', error);

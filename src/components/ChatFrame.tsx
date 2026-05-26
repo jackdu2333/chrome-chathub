@@ -39,6 +39,7 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, className, 
     const initials = bot.name.substring(0, 2).toUpperCase();
 
     const handleReload = () => {
+        markBooting(bot.instanceId);
         setReloadKey(prev => prev + 1);
     };
 
@@ -70,7 +71,7 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, className, 
             return;
         }
 
-        const timeoutMs = bot.id === 'gemini' ? 10000 : 15000;
+        const timeoutMs = bot.id === 'gemini' ? 20000 : 25000;
         const timer = window.setTimeout(() => {
             const latest = useFrameSessionStore.getState().sessions[bot.instanceId];
             if (!latest || latest.status !== 'booting') {
@@ -208,7 +209,10 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, className, 
                         style={{ colorScheme: isDarkMode ? 'dark' : 'light' }}
                         onLoad={() => {
                             markIframeLoaded(bot.instanceId);
-                            markBooting(bot.instanceId);
+                            const latest = useFrameSessionStore.getState().sessions[bot.instanceId];
+                            if (!latest || latest.status !== 'ready') {
+                                markBooting(bot.instanceId);
+                            }
                             requestFrameHello(bot.instanceId);
                         }}
                     />
