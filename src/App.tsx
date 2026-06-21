@@ -72,7 +72,8 @@ function App() {
   }, [themeMode, setDarkMode]);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  const [focusedBotId, setFocusedBotId] = useState<string | null>(null);
+  // 聚焦状态绑定窗口实例（instanceId），而非模型类型（bot.id）
+  const [focusedInstanceId, setFocusedInstanceId] = useState<string | null>(null);
   const [isModelDrawerOpen, setIsModelDrawerOpen] = useState(false);
 
   const { sensors, activeDragId, handleDragStart, handleDragEnd } = useBotDragAndDrop();
@@ -196,8 +197,9 @@ function App() {
                     strategy={rectSortingStrategy}
                   >
                     {activeBots.map((bot) => {
-                      const isFocused = focusedBotId === bot.id;
-                      const isHidden = focusedBotId && !isFocused;
+                      // 聚焦判断改为按 instanceId
+                      const isFocused = focusedInstanceId === bot.instanceId;
+                      const isHidden = focusedInstanceId && !isFocused;
 
                       return (
                         <div
@@ -211,7 +213,7 @@ function App() {
                           <SortableChatFrame
                             bot={bot}
                             isFocused={isFocused}
-                            onToggleFocus={() => setFocusedBotId(isFocused ? null : bot.id)}
+                            onToggleFocus={() => setFocusedInstanceId(isFocused ? null : bot.instanceId)}
                             onRemove={() => handleToggleBot(bot.id)}
                           />
                         </div>
@@ -239,6 +241,8 @@ function App() {
           <UnifiedInput
             isModelDrawerOpen={isModelDrawerOpen}
             onToggleModelDrawer={toggleModelDrawer}
+            focusedInstanceId={focusedInstanceId}
+            setFocusedInstanceId={setFocusedInstanceId}
           />
         </div>
       </div>
@@ -252,7 +256,7 @@ function App() {
         onUpdateAdapter={updateCustomAdapter}
       />
 
-      {focusedBotId && activeBots.length > 1 && (
+      {focusedInstanceId && activeBots.length > 1 && (
         <div
           className={cn(
             "fixed inset-0 z-30 pointer-events-none transition-opacity duration-300",

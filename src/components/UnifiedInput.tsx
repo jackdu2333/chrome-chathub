@@ -1,26 +1,58 @@
 import { ChangeEvent, ClipboardEvent, KeyboardEvent, useEffect, useRef, useState } from 'react';
-import { FileText, Image as ImageIcon, Link2, Link2Off, Paperclip, PanelLeft, Plus, Send, X } from 'lucide-react';
+import { FileText, Image as ImageIcon, Link2, Link2Off, Paperclip, PanelLeft, Plus, Send, Target, X, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useStore } from '../store';
 import { sendMessageBatch } from '../runtime/frameBridge';
+import type { SendResultItem, SendTargetMode } from '../store/types';
 
 interface UnifiedInputProps {
     isModelDrawerOpen: boolean;
     onToggleModelDrawer: () => void;
+    focusedInstanceId: string | null;
+    setFocusedInstanceId: (id: string | null) => void;
 }
+
+// 发送模式标签
+const SEND_MODE_LABELS: Record<SendTargetMode, { short: string; icon: typeof Target }> = {
+    all: { short: '全部', icon: Target },
+    focused: { short: '当前', icon: Target },
+    selected: { short: '自选', icon: Target },
+};
 
 export function UnifiedInput({
     isModelDrawerOpen,
     onToggleModelDrawer,
+    focusedInstanceId,
 }: UnifiedInputProps) {
-    const { isSyncEnabled, setSyncEnabled, reloadAllBots, draftContent, setDraftContent, activeBots, isInputCollapsed, setInputCollapsed } = useStore();
+    const {
+        isSyncEnabled, setSyncEnabled, reloadAllBots,
+        draftContent, setDraftContent, activeBots,
+        isInputCollapsed, setInputCollapsed,
+        // 发送目标
+        sendTargetMode, setSendTargetMode,
+        selectedTargetInstanceIds,
+        // 发送结果
+        setLastSendSummary,
+        // 输入框显示模式
+        inputDisplayMode,
+    } = useStore();
+
     const [selectedFiles, setSelectedFiles] = useState<{ name: string; type: string; data: string }[]>([]);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
     const [isFocused, setIsFocused] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
+    // toast 反馈
+    const [toast, setToast] = useState<{ type: 'success' | 'partial' | 'error'; message: string; detail?: string } | null>(null);
+    const toastTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
+    // 仅 auto-hide 模式才走折叠逻辑
     useEffect(() => {
+        if (inputDisplayMode === 'always') {
+            setInputCollapsed(false);
+            return;
+        }
+
         const isDraftEmpty = !draftContent.trim() && selectedFiles.length === 0;
         const needsCollapse = !isHovered && !isFocused && isDraftEmpty && !isModelDrawerOpen;
 
@@ -32,22 +64,83 @@ export function UnifiedInput({
         } else {
             setInputCollapsed(false);
         }
-    }, [isHovered, isFocused, draftContent, selectedFiles.length, isModelDrawerOpen, setInputCollapsed]);
+    }, [isHovered, isFocused, draftContent, selectedFiles.length, isModelDrawerOpen, setInputCollapsed, inputDisplayMode]);
 
-    const windowCount = activeBots.length;
+    // 计算发送目标
+    const resolveTargetInstanceIds = (): string[] => {
+        if (sendTargetMode === 'all') {
+            return activeBots.map(bot => bot.instanceId);
+        }
+        if (sendTargetMode === 'focused') {
+            return focusedInstanceId ? [focusedInstanceId] : [];
+        }
+        // selected 模式
+        return selectedTargetInstanceIds;
+    };
+
+    // 发送目标描述文本
+    const targetDescription = (): string => {
+        const count = resolveTargetInstanceIds().length;
+        if (count === 0) return '未选择目标';
+
+        if (sendTargetMode === 'focused' && focusedInstanceId) {
+            const bot = activeBots.find(b => b.instanceId === focusedInstanceId);
+            return bot ? `当前窗口 · ${bot.name}` : '当前窗口';
+        }
+        if (sendTargetMode === 'selected') return `自选 ${count} 个`;
+        return `全部 ${count} 个`;
+    };
+
+    // 显示 toast
+    const showToast = (type: 'success' | 'partial' | 'error', message: string, detail?: string) => {
+        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+        setToast({ type, message, detail });
+        toastTimerRef.current = setTimeout(() => setToast(null), 4000);
+    };
 
     const handleSend = async () => {
         if (!draftContent.trim() && selectedFiles.length === 0) return;
 
-        await sendMessageBatch({
-            instanceIds: activeBots.map(bot => bot.instanceId),
+        const targetInstanceIds = resolveTargetInstanceIds();
+        if (targetInstanceIds.length === 0) {
+            showToast('error', '请先选择发送目标');
+            return;
+        }
+
+        const results = await sendMessageBatch({
+            instanceIds: targetInstanceIds,
             text: draftContent,
             autoSubmit: isSyncEnabled,
             files: selectedFiles
         });
 
-        setDraftContent('');
-        setSelectedFiles([]);
+        // 构建发送结果摘要
+        const botMap = new Map(activeBots.map(b => [b.instanceId, b.name]));
+        const items: SendResultItem[] = results.map(r => ({
+            instanceId: r.instanceId,
+            botName: botMap.get(r.instanceId) ?? 'Unknown',
+            success: r.success,
+            error: r.error,
+            timestamp: Date.now(),
+        }));
+
+        const successCount = items.filter(i => i.success).length;
+        const failedCount = items.length - successCount;
+        const summary = { total: items.length, successCount, failedCount, items };
+        setLastSendSummary(summary);
+
+        // 草稿保护：全部成功才清空
+        if (failedCount === 0) {
+            setDraftContent('');
+            setSelectedFiles([]);
+            showToast('success', `已发送到 ${successCount} 个模型`);
+        } else if (successCount > 0) {
+            const failedNames = items.filter(i => !i.success).map(i => i.botName).join('、');
+            showToast('partial', `已发送 ${successCount} 个，失败 ${failedCount} 个：${failedNames}`);
+        } else {
+            const firstError = items.find(i => i.error)?.error ?? '未知错误';
+            showToast('error', `发送失败，草稿已保留`, firstError);
+        }
     };
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -84,14 +177,12 @@ export function UnifiedInput({
         if (e.target.files) {
             await processFiles(Array.from(e.target.files));
         }
-        // Reset input so same file can be selected again
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
     const handlePaste = async (e: ClipboardEvent<HTMLTextAreaElement>) => {
-        // Check for files in clipboard
         if (e.clipboardData.files && e.clipboardData.files.length > 0) {
-            e.preventDefault(); // Prevent default paste behavior (e.g. pasting file name)
+            e.preventDefault();
             await processFiles(Array.from(e.clipboardData.files));
         }
     };
@@ -117,14 +208,46 @@ export function UnifiedInput({
         resizeTextarea();
     }, [draftContent]);
 
+    const windowCount = activeBots.length;
+    const hasNoTargets = resolveTargetInstanceIds().length === 0;
+
+    // 循环切换发送模式
+    const cycleSendMode = () => {
+        const modes: SendTargetMode[] = ['all', 'focused', 'selected'];
+        const currentIndex = modes.indexOf(sendTargetMode);
+        setSendTargetMode(modes[(currentIndex + 1) % modes.length]);
+    };
+
     return (
         <>
-            {/* Invisible Hover Sensor Zone at the absolute bottom of the screen */}
+            {/* Invisible Hover Sensor Zone */}
             {isInputCollapsed && (
                 <div
                     className="fixed bottom-0 left-0 right-0 h-4 z-[99] cursor-pointer pointer-events-auto"
                     onMouseEnter={() => setIsHovered(true)}
                 />
+            )}
+
+            {/* Toast 反馈 */}
+            {toast && (
+                <div className="fixed bottom-[96px] left-1/2 -translate-x-1/2 z-[200] animate-in fade-in slide-in-from-bottom-2 duration-300">
+                    <div className={cn(
+                        "flex items-center gap-2.5 rounded-full border px-4 py-2.5 text-sm font-medium shadow-2xl backdrop-blur-xl",
+                        toast.type === 'success' && "border-emerald-500/20 bg-emerald-950/80 text-emerald-200",
+                        toast.type === 'partial' && "border-amber-500/20 bg-amber-950/80 text-amber-200",
+                        toast.type === 'error' && "border-red-500/20 bg-red-950/80 text-red-200",
+                    )}>
+                        {toast.type === 'success' && <CheckCircle2 className="h-4 w-4 shrink-0" />}
+                        {toast.type === 'partial' && <AlertTriangle className="h-4 w-4 shrink-0" />}
+                        {toast.type === 'error' && <AlertCircle className="h-4 w-4 shrink-0" />}
+                        <span>{toast.message}</span>
+                        {toast.detail && (
+                            <span className="max-w-[300px] truncate text-xs opacity-60" title={toast.detail}>
+                                {toast.detail}
+                            </span>
+                        )}
+                    </div>
+                </div>
             )}
 
             <div
@@ -190,6 +313,23 @@ export function UnifiedInput({
                                     <span className="hidden lg:inline text-[13px]">模型</span>
                                 </button>
 
+                                {/* 发送目标模式切换 */}
+                                <button
+                                    onClick={cycleSendMode}
+                                    className={cn(
+                                        "btn-icon flex h-9 items-center justify-center gap-1.5 px-3 transition-all",
+                                        hasNoTargets
+                                            ? "text-amber-400/80"
+                                            : "text-[#f1f6f3] border-white/[0.05] bg-[rgba(183,200,191,0.16)]"
+                                    )}
+                                    title={`发送目标：${targetDescription()}（点击切换）`}
+                                >
+                                    <Target className="h-4 w-4" />
+                                    <span className="hidden lg:inline text-[13px]">
+                                        {SEND_MODE_LABELS[sendTargetMode].short}
+                                    </span>
+                                </button>
+
                                 <button
                                     onClick={() => setSyncEnabled(!isSyncEnabled)}
                                     className={cn(
@@ -198,7 +338,7 @@ export function UnifiedInput({
                                             ? "border-white/[0.05] bg-[rgba(183,200,191,0.16)] text-[#f1f6f3]"
                                             : "text-slate-400"
                                     )}
-                                    title={isSyncEnabled ? "同步发送开启" : "同步发送关闭"}
+                                    title={isSyncEnabled ? "同步发送（自动提交）" : "草稿模式（仅注入不提交）"}
                                 >
                                     {isSyncEnabled ? <Link2 className="h-4.5 w-4.5" /> : <Link2Off className="h-4.5 w-4.5" />}
                                     <span className="hidden xl:inline text-[13px]">{isSyncEnabled ? '同步' : '草稿'}</span>
@@ -228,7 +368,7 @@ export function UnifiedInput({
                                     onPaste={handlePaste}
                                     onFocus={() => setIsFocused(true)}
                                     onBlur={() => setIsFocused(false)}
-                                    placeholder={isSyncEnabled ? "把消息发往所有窗口..." : "先写草稿，按 Enter 注入到当前窗口..."}
+                                    placeholder={hasNoTargets ? "请先选择发送目标..." : isSyncEnabled ? "把消息发往目标窗口..." : "先写草稿，按 Enter 注入到目标窗口..."}
                                     className={cn(
                                         "min-w-0 flex-1 resize-none border-none bg-transparent outline-none focus:ring-0",
                                         "text-[15px] leading-6 text-white placeholder:text-slate-500",
@@ -242,8 +382,14 @@ export function UnifiedInput({
                                     }}
                                     rows={1}
                                 />
-                                <span className="hidden lg:inline shrink-0 rounded-full border border-white/[0.05] bg-white/[0.025] px-2.5 py-1 text-[11px] font-medium text-slate-400">
-                                    {windowCount} 窗口
+                                {/* 发送目标描述 */}
+                                <span className={cn(
+                                    "hidden lg:inline shrink-0 rounded-full border px-2.5 py-1 text-[11px] font-medium",
+                                    hasNoTargets
+                                        ? "border-amber-500/20 bg-amber-950/30 text-amber-400/80"
+                                        : "border-white/[0.05] bg-white/[0.025] text-slate-400"
+                                )}>
+                                    {targetDescription()}
                                 </span>
                             </div>
 
@@ -259,10 +405,10 @@ export function UnifiedInput({
 
                                 <button
                                     onClick={() => { void handleSend(); }}
-                                    disabled={!draftContent.trim() && selectedFiles.length === 0}
+                                    disabled={(!draftContent.trim() && selectedFiles.length === 0) || hasNoTargets}
                                     className={cn(
                                         "btn-primary flex h-10 min-w-[48px] items-center justify-center rounded-[14px] px-4 shrink-0",
-                                        !draftContent.trim() && selectedFiles.length === 0 && "cursor-not-allowed opacity-50"
+                                        ((!draftContent.trim() && selectedFiles.length === 0) || hasNoTargets) && "cursor-not-allowed opacity-50"
                                     )}
                                 >
                                     <Send className="h-4.5 w-4.5" />
