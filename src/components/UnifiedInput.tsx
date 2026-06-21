@@ -98,9 +98,11 @@ export function UnifiedInput({
         toastTimerRef.current = setTimeout(() => setToast(null), 4000);
     };
 
-    const handleSend = async () => {
+    const handleSend = async (modeOverride?: SendTargetMode) => {
         if (!draftContent.trim() && selectedFiles.length === 0) return;
 
+        // 快捷键可临时覆盖发送模式
+        if (modeOverride) setSendTargetMode(modeOverride);
         const targetInstanceIds = resolveTargetInstanceIds();
         if (targetInstanceIds.length === 0) {
             showToast('error', '请先选择发送目标');
@@ -146,6 +148,19 @@ export function UnifiedInput({
     const handleKeyDown = (e: KeyboardEvent) => {
         if (e.nativeEvent.isComposing) return;
 
+        // Cmd/Ctrl+Shift+Enter: 只发送到当前窗口
+        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && e.shiftKey) {
+            e.preventDefault();
+            void handleSend('focused');
+            return;
+        }
+        // Cmd/Ctrl+Enter: 发送到全部模型
+        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            void handleSend('all');
+            return;
+        }
+        // Enter: 按当前模式发送
         if (e.key === 'Enter' && !e.shiftKey) {
             e.preventDefault();
             void handleSend();

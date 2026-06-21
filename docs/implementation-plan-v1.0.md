@@ -233,3 +233,32 @@ setInputDisplayMode: (mode: 'always' | 'auto-hide') => void;
 5. `src/components/UnifiedInput.tsx`：重构 handleSend，消费返回值，草稿保护，发送目标 UI
 6. `npm run build` 验证
 7. git commit
+
+---
+
+## 实施完成记录（2026-06-21）
+
+所有 6 个 Phase 已全部实施并通过 build + test 验证。
+
+| Phase | 版本 | 状态 | 提交 |
+|---|---|---|---|
+| 1 | v3.3.0 | ✅ 完成 | d0ca4b3 |
+| 2 | v3.4.0 | ✅ 完成 | 525d106 |
+| 3 | v3.5.0 | ✅ 完成 | 9dc53b7 |
+| 4 | v3.6.0 | ✅ 完成 | c26ca05 |
+| 5 | v3.7.0 | ✅ 完成 | 357532b |
+| 6 | v3.8.0 | ✅ 完成 | 5fd5561 |
+| 补全 | v3.8.0 | ✅ 完成 | 版本号修正、F4 快捷键、自定义 adapter 测试按钮 |
+
+### 验证结果
+
+- `npm run build`：1751 模块，2.01s，零 TypeScript 错误
+- `npx vitest run`：8/8 测试通过
+- manifest 版本：3.8.0
+- git 工作树：干净
+
+### 额外补充项
+
+- F4 快捷键：Cmd/Ctrl+Enter 发送全部、Cmd/Ctrl+Shift+Enter 发送当前窗口
+- 自定义 adapter 测试按钮：Settings 中可测试 selector 是否匹配目标页面
+- content script 新增 CHAT_HUB_TEST_SELECTORS 消息处理

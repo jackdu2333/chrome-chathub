@@ -96,6 +96,57 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
         resetForm();
     };
 
+    const [testing, setTesting] = useState(false);
+    const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
+
+    // 测试自定义 adapter：打开 URL 检查 selector 是否可匹配
+    const handleTest = async () => {
+        if (!url.trim()) {
+            setTestResult({ ok: false, message: '请先填写网址' });
+            return;
+        }
+        setTesting(true);
+        setTestResult(null);
+        try {
+            // 在新标签页打开目标 URL
+            const tab = await chrome.tabs.create({ url, active: false });
+            if (!tab.id) throw new Error('无法打开标签页');
+
+            // 等待 5 秒让页面加载和 content script 初始化
+            await new Promise(r => setTimeout(r, 5000));
+
+            // 向标签页发消息，请求 content script 检测 selector
+            const response = await chrome.tabs.sendMessage(tab.id, {
+                type: 'CHAT_HUB_TEST_SELECTORS',
+                payload: { inputSelector, submitSelector }
+            }).catch(() => null);
+
+            // 关闭测试标签页
+            await chrome.tabs.remove(tab.id).catch(() => {});
+
+            if (response?.success) {
+                const parts = [];
+                if (response.inputFound) parts.push('输入框');
+                if (response.submitFound) parts.push('发送按钮');
+                setTestResult({
+                    ok: response.inputFound && response.submitFound,
+                    message: parts.length > 0
+                        ? `检测到：${parts.join('、')}`
+                        : '未检测到输入框或发送按钮，selector 可能需要调整'
+                });
+            } else {
+                setTestResult({ ok: false, message: '页面未加载或无 content script，请检查 URL 是否正确' });
+            }
+        } catch (error) {
+            setTestResult({
+                ok: false,
+                message: error instanceof Error ? error.message : '测试失败'
+            });
+        } finally {
+            setTesting(false);
+        }
+    };
+
     const resetForm = () => {
         setName('');
         setUrl('');
@@ -367,6 +418,32 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
                                         onChange={(e) => setSubmitSelector(e.target.value)}
                                         className="w-full px-3 py-2 bg-white/40 dark:bg-black/20 border border-black/5 dark:border-white/10 rounded-lg text-xs font-mono text-gray-600 dark:text-gray-300 focus:ring-1 focus:ring-blue-500 outline-none"
                                     />
+                                </div>
+
+                                {/* 测试按钮 */}
+                                <div className="mt-4">
+                                    <button
+                                        onClick={handleTest}
+                                        disabled={testing || !url.trim()}
+                                        className={cn(
+                                            "rounded-lg border px-4 py-2 text-[13px] font-medium transition-all",
+                                            testing || !url.trim()
+                                                ? "border-slate-300/30 text-slate-400 cursor-not-allowed"
+                                                : "border-blue-500/30 bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20"
+                                        )}
+                                    >
+                                        {testing ? '检测中...' : '测试 Selector'}
+                                    </button>
+                                    {testResult && (
+                                        <div className={cn(
+                                            "mt-2 rounded-lg px-3 py-2 text-[12px]",
+                                            testResult.ok
+                                                ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                                                : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                                        )}>
+                                            {testResult.ok ? '✓' : '⚠'} {testResult.message}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>

@@ -438,6 +438,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
             .catch((error) => sendResponse({ success: false, error: error instanceof Error ? error.message : 'Unknown error' }));
         return true; // Keep message channel open for async response
     }
+    if (message?.type === 'CHAT_HUB_TEST_SELECTORS') {
+        const { inputSelector, submitSelector } = message.payload || {};
+        const inputEl = inputSelector ? document.querySelector(inputSelector) : null;
+        const submitEl = submitSelector ? document.querySelector(submitSelector) : null;
+        sendResponse({
+            success: true,
+            inputFound: !!inputEl,
+            submitFound: !!submitEl,
+        });
+        return true;
+    }
     if (message?.type === 'BROADCAST_RESULT') {
         const { totalSent, totalFailed } = message.payload || {};
         if (totalFailed > 0) {
