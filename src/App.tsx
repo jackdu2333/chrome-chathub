@@ -160,9 +160,9 @@ function App() {
 
       <div className="relative flex h-full min-w-0 flex-1 flex-col p-3">
         <div className="workspace-canvas relative flex h-full min-h-0 flex-col">
-          {/* 布局切换器：占据自己的行空间，避免与 ChatFrame 头部按钮重叠 */}
+          {/* 布局切换器：浮动左上角，不占布局空间，不遮挡 ChatFrame 右侧按钮 */}
           {activeBots.length >= 2 && (
-            <div className="flex shrink-0 items-center justify-end gap-0.5 pb-2">
+            <div className="pointer-events-auto absolute left-3 top-3 z-30 flex items-center gap-0.5 rounded-full border border-white/[0.06] bg-black/30 p-0.5 opacity-60 backdrop-blur-sm transition-opacity hover:opacity-100">
               {([
                 { mode: 'grid', icon: LayoutGrid, label: '均分' },
                 { mode: 'primary-secondary', icon: Columns2, label: '主次' },
@@ -173,14 +173,14 @@ function App() {
                   key={mode}
                   onClick={() => setLayoutMode(mode)}
                   className={cn(
-                    "flex h-7 w-7 items-center justify-center rounded-full transition-all",
+                    "flex h-6 w-6 items-center justify-center rounded-full transition-all",
                     layoutMode === mode
-                      ? "bg-[#bec8d5]/15 text-[#f1f6f3]"
+                      ? "bg-[#bec8d5]/20 text-[#f1f6f3]"
                       : "text-slate-500 hover:text-slate-300"
                   )}
                   title={label}
                 >
-                  <Icon className="h-3.5 w-3.5" />
+                  <Icon className="h-3 w-3" />
                 </button>
               ))}
             </div>
