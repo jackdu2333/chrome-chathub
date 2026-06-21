@@ -160,9 +160,9 @@ function App() {
 
       <div className="relative flex h-full min-w-0 flex-1 flex-col p-3">
         <div className="workspace-canvas relative flex h-full min-h-0 flex-col">
-          {/* 布局切换器 */}
+          {/* 布局切换器：占据自己的行空间，避免与 ChatFrame 头部按钮重叠 */}
           {activeBots.length >= 2 && (
-            <div className="absolute right-3 top-3 z-20 flex items-center gap-0.5 rounded-full border border-white/[0.06] bg-white/[0.03] p-0.5 backdrop-blur-md">
+            <div className="flex shrink-0 items-center justify-end gap-0.5 pb-2">
               {([
                 { mode: 'grid', icon: LayoutGrid, label: '均分' },
                 { mode: 'primary-secondary', icon: Columns2, label: '主次' },
