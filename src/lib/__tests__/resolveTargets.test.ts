@@ -1,22 +1,12 @@
 import { describe, it, expect } from 'vitest';
+import { resolveTargetInstanceIds, filterValidInstanceIds, isInstanceIdStale } from '../resolveTargets';
 import type { SendTargetMode } from '../../store/types';
 
-// 纯函数测试：验证发送目标解析逻辑（不依赖 React/Zustand）
-function resolveTargetInstanceIds(
-  mode: SendTargetMode,
-  activeInstanceIds: string[],
-  focusedInstanceId: string | null,
-  selectedTargetInstanceIds: string[],
-): string[] {
-  if (mode === 'all') return activeInstanceIds;
-  if (mode === 'focused') return focusedInstanceId ? [focusedInstanceId] : [];
-  return selectedTargetInstanceIds;
-}
-
-describe('resolveTargetInstanceIds', () => {
+// 测试纯函数：发送目标解析（不依赖 React/Zustand）
+describe('resolveTargetInstanceIds (pure function)', () => {
   const allIds = ['inst-a', 'inst-b', 'inst-c'];
 
-  it('all 模式返回全部 active instance', () => {
+  it('all 模式返回全部 instance', () => {
     expect(resolveTargetInstanceIds('all', allIds, null, [])).toEqual(allIds);
   });
 
@@ -34,7 +24,45 @@ describe('resolveTargetInstanceIds', () => {
   });
 
   it('selected 模式无勾选时返回空数组', () => {
-    expect(resolveTargetInstanceIds('selected', allIds, null, [])).toEqual([]);
+    expect(resolveTargetInstanceIds('selected' as SendTargetMode, allIds, null, [])).toEqual([]);
+  });
+
+  it('modeOverride 优先于默认 mode', () => {
+    // 模拟 Cmd+Enter 临时切到 all
+    const mode: SendTargetMode = 'all';
+    expect(resolveTargetInstanceIds(mode, allIds, null, ['inst-a'])).toEqual(allIds);
+  });
+});
+
+describe('filterValidInstanceIds', () => {
+  it('reload 后旧 ID 全部失效', () => {
+    const oldIds = ['inst-1', 'inst-2'];
+    const newIds = ['inst-1-new', 'inst-2-new'];
+    expect(filterValidInstanceIds(oldIds, newIds)).toEqual([]);
+  });
+
+  it('append 模式保留仍有效的 ID', () => {
+    const oldSelected = ['inst-1', 'inst-2'];
+    const currentIds = ['inst-1', 'inst-3'];
+    expect(filterValidInstanceIds(oldSelected, currentIds)).toEqual(['inst-1']);
+  });
+
+  it('replace 模式清空后为空', () => {
+    expect(filterValidInstanceIds([], [])).toEqual([]);
+  });
+});
+
+describe('isInstanceIdStale', () => {
+  it('失效的 ID 返回 true', () => {
+    expect(isInstanceIdStale('old-focused', ['inst-a', 'inst-b'])).toBe(true);
+  });
+
+  it('有效的 ID 返回 false', () => {
+    expect(isInstanceIdStale('inst-a', ['inst-a', 'inst-b'])).toBe(false);
+  });
+
+  it('null 不算失效', () => {
+    expect(isInstanceIdStale(null, ['inst-a'])).toBe(false);
   });
 });
 
