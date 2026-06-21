@@ -1,4 +1,4 @@
-import { Pin, PinOff, Settings as SettingsIcon, Sparkles, X, Search, Layers, Check, Trash2 } from 'lucide-react';
+import { Pin, PinOff, Settings as SettingsIcon, Sparkles, X, Search, Layers, Check, Trash2, Edit2 } from 'lucide-react';
 
 import { useState, useMemo } from 'react';
 import { useStore } from '../store';
@@ -37,11 +37,14 @@ export function Sidebar({
     const [searchKeyword, setSearchKeyword] = useState('');
     const [showSaveDialog, setShowSaveDialog] = useState(false);
     const [groupName, setGroupName] = useState('');
+    const [renamingGroupId, setRenamingGroupId] = useState<string | null>(null);
+    const [renameValue, setRenameValue] = useState('');
 
     const modelGroups = useStore(state => state.modelGroups);
     const saveModelGroup = useStore(state => state.saveModelGroup);
     const applyModelGroup = useStore(state => state.applyModelGroup);
     const deleteModelGroup = useStore(state => state.deleteModelGroup);
+    const renameModelGroup = useStore(state => state.renameModelGroup);
     const activeBotsForGroups = useStore(state => state.activeBots);
 
     const handleSaveGroup = () => {
@@ -49,6 +52,13 @@ export function Sidebar({
         saveModelGroup(groupName.trim());
         setGroupName('');
         setShowSaveDialog(false);
+    };
+
+    const handleRenameGroup = (groupId: string) => {
+        if (!renameValue.trim()) return;
+        renameModelGroup(groupId, renameValue.trim());
+        setRenamingGroupId(null);
+        setRenameValue('');
     };
 
     const adapterPreferences = useStore(state => state.adapterPreferences);
@@ -309,7 +319,27 @@ export function Sidebar({
                         )}
 
                         {modelGroups.map(group => (
-                            <div key={group.id} className="group/item mb-1 flex items-center gap-1.5 px-2">
+                            <div key={group.id}>
+                            {renamingGroupId === group.id ? (
+                                <div className="mb-1 flex items-center gap-1.5 px-2">
+                                    <input
+                                        type="text"
+                                        value={renameValue}
+                                        onChange={(e) => setRenameValue(e.target.value)}
+                                        onKeyDown={(e) => { if (e.key === 'Enter') handleRenameGroup(group.id); if (e.key === 'Escape') { setRenamingGroupId(null); setRenameValue(''); } }}
+                                        placeholder="新名称..."
+                                        autoFocus
+                                        className="min-w-0 flex-1 rounded-[8px] border border-white/[0.08] bg-white/[0.04] px-2.5 py-1.5 text-[12px] text-slate-200 placeholder:text-slate-600 outline-none"
+                                    />
+                                    <button onClick={() => handleRenameGroup(group.id)} className="rounded-full bg-[#bec8d5]/15 p-1.5 text-slate-200 hover:bg-[#bec8d5]/25">
+                                        <Check className="h-3 w-3" />
+                                    </button>
+                                    <button onClick={() => { setRenamingGroupId(null); setRenameValue(''); }} className="rounded-full p-1.5 text-slate-500 hover:bg-white/[0.05]">
+                                        <X className="h-3 w-3" />
+                                    </button>
+                                </div>
+                            ) : (
+                            <div className="group/item mb-1 flex items-center gap-1.5 px-2">
                                 <button
                                     onClick={() => applyModelGroup(group.id, 'replace')}
                                     onContextMenu={(e) => { e.preventDefault(); }}
@@ -328,12 +358,21 @@ export function Sidebar({
                                     +
                                 </button>
                                 <button
+                                    onClick={() => { setRenamingGroupId(group.id); setRenameValue(group.name); }}
+                                    className="shrink-0 rounded-full p-1 text-slate-600 opacity-0 transition-opacity hover:text-slate-300 group-hover/item:opacity-100"
+                                    title="重命名"
+                                >
+                                    <Edit2 className="h-3 w-3" />
+                                </button>
+                                <button
                                     onClick={() => deleteModelGroup(group.id)}
                                     className="shrink-0 rounded-full p-1 text-slate-600 opacity-0 transition-opacity hover:text-red-400 group-hover/item:opacity-100"
                                     title="删除组合"
                                 >
                                     <Trash2 className="h-3 w-3" />
                                 </button>
+                            </div>
+                            )}
                             </div>
                         ))}
                     </div>

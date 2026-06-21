@@ -42,12 +42,16 @@ export const createModelGroupSlice: StateCreator<AppState, [], [], ModelGroupSli
 
         if (mode === 'replace') {
             // 替换：关闭当前所有模型，打开组合中的模型
-            set({ activeBots: groupBots });
+            set({ activeBots: groupBots, selectedTargetInstanceIds: [] });
         } else {
             // 追加：在当前模型基础上追加组合中的模型（去重）
             const existingIds = new Set(state.activeBots.map(b => b.id));
             const newBots = groupBots.filter(b => !existingIds.has(b.id));
-            set({ activeBots: [...state.activeBots, ...newBots] });
+            // 追加模式下旧 ID 仍在，只清掉已失效的 selected targets
+            const validSelected = state.selectedTargetInstanceIds.filter(id =>
+                [...state.activeBots, ...newBots].some(b => b.instanceId === id)
+            );
+            set({ activeBots: [...state.activeBots, ...newBots], selectedTargetInstanceIds: validSelected });
         }
 
         setTimeout(() => get().saveActiveBots(), 0);

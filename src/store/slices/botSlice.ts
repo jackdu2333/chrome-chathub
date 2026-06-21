@@ -51,7 +51,9 @@ export const createBotSlice: StateCreator<AppState, [], [], BotSlice> = (set, ge
             activeBots: state.activeBots.map(bot => ({
                 ...bot,
                 instanceId: crypto.randomUUID()
-            }))
+            })),
+            // instanceId 变了，旧的 selected targets 全部失效，必须清空
+            selectedTargetInstanceIds: [],
         }));
     },
 

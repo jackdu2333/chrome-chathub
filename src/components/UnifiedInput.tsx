@@ -67,11 +67,11 @@ export function UnifiedInput({
     }, [isHovered, isFocused, draftContent, selectedFiles.length, isModelDrawerOpen, setInputCollapsed, inputDisplayMode]);
 
     // 计算发送目标
-    const resolveTargetInstanceIds = (): string[] => {
-        if (sendTargetMode === 'all') {
+    const resolveTargetInstanceIds = (mode: SendTargetMode = sendTargetMode): string[] => {
+        if (mode === 'all') {
             return activeBots.map(bot => bot.instanceId);
         }
-        if (sendTargetMode === 'focused') {
+        if (mode === 'focused') {
             return focusedInstanceId ? [focusedInstanceId] : [];
         }
         // selected 模式
@@ -101,9 +101,12 @@ export function UnifiedInput({
     const handleSend = async (modeOverride?: SendTargetMode) => {
         if (!draftContent.trim() && selectedFiles.length === 0) return;
 
-        // 快捷键可临时覆盖发送模式
+        // 快捷键覆盖发送模式：用传入的 mode 解析目标，而非闭包里的旧 sendTargetMode
+        const effectiveMode = modeOverride ?? sendTargetMode;
+        const targetInstanceIds = resolveTargetInstanceIds(effectiveMode);
+
+        // 同时更新 store 状态（让 UI 反映切换）
         if (modeOverride) setSendTargetMode(modeOverride);
-        const targetInstanceIds = resolveTargetInstanceIds();
         if (targetInstanceIds.length === 0) {
             showToast('error', '请先选择发送目标');
             return;

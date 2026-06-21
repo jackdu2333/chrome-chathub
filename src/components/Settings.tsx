@@ -24,6 +24,8 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
     const setUIThemeVariant = useStore((state) => state.setUIThemeVariant);
     const themeMode = useStore((state) => state.themeMode || 'system');
     const setThemeMode = useStore((state) => state.setThemeMode);
+    const inputDisplayMode = useStore((state) => state.inputDisplayMode);
+    const setInputDisplayMode = useStore((state) => state.setInputDisplayMode);
 
     // Get custom adapters (not default ones)
     const customAdapters = adapters.filter(a =>
@@ -55,7 +57,11 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
             name,
             url,
             inputSelector,
-            submitSelector
+            submitSelector,
+            // 自定义 adapter 默认分类和标记
+            category: 'custom',
+            tags: ['自定义'],
+            stabilityLevel: 'fragile',
         };
 
         if (editingId) {
@@ -327,6 +333,40 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
                                         {domain}
                                     </span>
                                 ))}
+                            </div>
+                        </div>
+
+                        {/* 输入框显示方式 */}
+                        <div className="mb-5 rounded-xl border border-black/5 bg-white/45 p-4 dark:border-white/10 dark:bg-white/5">
+                            <h3 className="text-[13px] font-medium uppercase tracking-wide text-gray-500">
+                                输入框显示方式
+                            </h3>
+                            <p className="mt-2 text-[12px] leading-5 text-gray-500 dark:text-gray-400">
+                                控制底部输入框是否自动收起。始终显示适合频繁输入，自动隐藏可最大化窗口空间。
+                            </p>
+                            <div className="mt-3 grid grid-cols-2 gap-2">
+                                <button
+                                    onClick={() => setInputDisplayMode('always')}
+                                    className={cn(
+                                        "rounded-lg border py-2 text-center transition-all text-[13px] font-medium",
+                                        inputDisplayMode === 'always'
+                                            ? "border-[#bec8d5]/45 bg-[#bec8d5]/12 ring-1 ring-[#bec8d5]/40 text-mac-text-light dark:text-mac-text-dark"
+                                            : "border-black/8 bg-white/40 hover:border-black/15 dark:border-white/10 dark:bg-white/5 dark:hover:border-white/20 text-gray-500 dark:text-gray-400"
+                                    )}
+                                >
+                                    始终显示
+                                </button>
+                                <button
+                                    onClick={() => setInputDisplayMode('auto-hide')}
+                                    className={cn(
+                                        "rounded-lg border py-2 text-center transition-all text-[13px] font-medium",
+                                        inputDisplayMode === 'auto-hide'
+                                            ? "border-[#bec8d5]/45 bg-[#bec8d5]/12 ring-1 ring-[#bec8d5]/40 text-mac-text-light dark:text-mac-text-dark"
+                                            : "border-black/8 bg-white/40 hover:border-black/15 dark:border-white/10 dark:bg-white/5 dark:hover:border-white/20 text-gray-500 dark:text-gray-400"
+                                    )}
+                                >
+                                    自动隐藏
+                                </button>
                             </div>
                         </div>
 

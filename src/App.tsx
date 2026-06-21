@@ -103,6 +103,13 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isModelDrawerOpen]);
 
+  // P0-4: 聚焦窗口被关闭/替换后，自动清理失效的 focusedInstanceId
+  useEffect(() => {
+    if (focusedInstanceId && !activeBots.some(bot => bot.instanceId === focusedInstanceId)) {
+      setFocusedInstanceId(null);
+    }
+  }, [activeBots, focusedInstanceId, setFocusedInstanceId]);
+
   useEffect(() => {
     document.body.classList.toggle('ui-variant-bold', uiThemeVariant === 'bold');
     return () => {
