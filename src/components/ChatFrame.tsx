@@ -1,5 +1,6 @@
 import { useEffect, useState, useRef } from 'react';
-import { RefreshCw, Maximize2, Minimize2, XCircle, GripVertical } from 'lucide-react';
+import { RefreshCw, Maximize2, Minimize2, XCircle, GripVertical, Check } from 'lucide-react';
+
 import { cn } from '../lib/utils';
 import { useStore } from '../store';
 import type { ChatBot } from '../types';
@@ -22,6 +23,13 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, className, 
     const [reloadKey, setReloadKey] = useState(0);
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const isDarkMode = useStore(state => state.isDarkMode);
+    // selected 模式：发送目标勾选
+    const sendTargetMode = useStore(state => state.sendTargetMode);
+    const selectedTargetInstanceIds = useStore(state => state.selectedTargetInstanceIds);
+    const toggleSelectedTarget = useStore(state => state.toggleSelectedTarget);
+    const isSelected = selectedTargetInstanceIds.includes(bot.instanceId);
+    const showSelectCheckbox = sendTargetMode === 'selected';
+
     const ensureSession = useFrameSessionStore(state => state.ensureSession);
     const markBooting = useFrameSessionStore(state => state.markBooting);
     const markIframeLoaded = useFrameSessionStore(state => state.markIframeLoaded);
@@ -170,6 +178,22 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, className, 
                             {statusLabel}
                         </span>
                     </div>
+
+                    {/* selected 模式下的勾选框 */}
+                    {showSelectCheckbox && (
+                        <button
+                            onClick={() => toggleSelectedTarget(bot.instanceId)}
+                            className={cn(
+                                "ml-1 flex h-5 w-5 items-center justify-center rounded-[6px] border transition-all",
+                                isSelected
+                                    ? "border-[#bec8d5]/40 bg-[#bec8d5]/20 text-white"
+                                    : "border-white/[0.12] bg-transparent text-transparent hover:border-white/[0.25]"
+                            )}
+                            title={isSelected ? "取消选择" : "选为发送目标"}
+                        >
+                            <Check className="h-3 w-3" />
+                        </button>
+                    )}
 
                     <div className="flex items-center gap-0">
                         <button

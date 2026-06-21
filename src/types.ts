@@ -7,6 +7,16 @@ export type UploadStrategy =
     | 'drop-first'
     | 'input-only'
     | 'paste-only';
+// Adapter 分类，用于模型栏分组
+export type AdapterCategory =
+    | 'general'
+    | 'coding'
+    | 'chinese'
+    | 'search'
+    | 'long-context'
+    | 'custom';
+// Adapter 稳定等级
+export type StabilityLevel = 'stable' | 'medium' | 'fragile';
 
 export interface SelectorLocator {
     selector: string;
@@ -55,6 +65,11 @@ export interface ServiceAdapter {
     inputActions?: AdapterAction[];
     sendActions?: AdapterAction[];
     newChatActions?: AdapterAction[];
+    // 模型栏分组与展示（Phase 2）
+    category?: AdapterCategory;
+    displayName?: string;
+    tags?: string[];
+    stabilityLevel?: StabilityLevel;
 }
 
 export interface ChatBot extends ServiceAdapter {
@@ -91,6 +106,10 @@ export const DEFAULT_ADAPTERS: ServiceAdapter[] = [
         icon: 'Bot',
         inputSelector: '.ProseMirror, [data-placeholder="输入关键词搜索"]',
         submitSelector: 'button[label="ChatSendButton"]'
+        ,
+        category: 'general',
+        tags: ['通用', '搜索'],
+        stabilityLevel: 'medium'
     },
     {
         id: 'openai',
@@ -116,6 +135,10 @@ export const DEFAULT_ADAPTERS: ServiceAdapter[] = [
         submitMode: 'auto',
         submitVerificationMode: 'strict',
         uploadStrategy: 'input-first'
+        ,
+        category: 'general',
+        tags: ['通用', '英文', '代码'],
+        stabilityLevel: 'medium'
     },
     {
         id: 'claude',
@@ -124,6 +147,10 @@ export const DEFAULT_ADAPTERS: ServiceAdapter[] = [
         icon: 'Bot',
         inputSelector: 'div[contenteditable="true"].ProseMirror',
         submitSelector: 'button[aria-label="Send Message"]'
+        ,
+        category: 'general',
+        tags: ['通用', '英文', '代码', '长文本'],
+        stabilityLevel: 'stable'
     },
     {
         id: 'gemini',
@@ -148,6 +175,10 @@ export const DEFAULT_ADAPTERS: ServiceAdapter[] = [
         submitMode: 'button',
         submitVerificationMode: 'strict',
         uploadStrategy: 'paste-first'
+        ,
+        category: 'general',
+        tags: ['通用', '英文', '长文本'],
+        stabilityLevel: 'medium'
     },
     {
         id: 'copilot',
@@ -156,6 +187,10 @@ export const DEFAULT_ADAPTERS: ServiceAdapter[] = [
         icon: 'Bot',
         inputSelector: '#searchbox, textarea[id^="searchbox"]',
         submitSelector: 'button[aria-label="Submit"]'
+        ,
+        category: 'search',
+        tags: ['搜索', '通用'],
+        stabilityLevel: 'fragile'
     },
     {
         id: 'doubao',
@@ -197,6 +232,10 @@ export const DEFAULT_ADAPTERS: ServiceAdapter[] = [
                 }
             }
         ]
+        ,
+        category: 'chinese',
+        tags: ['中文', '通用'],
+        stabilityLevel: 'medium'
     },
     {
         id: 'qianwen',
@@ -238,6 +277,10 @@ export const DEFAULT_ADAPTERS: ServiceAdapter[] = [
                 }
             }
         ]
+        ,
+        category: 'chinese',
+        tags: ['中文', '通用', '长文本'],
+        stabilityLevel: 'medium'
     },
     {
         id: 'yiyan',
@@ -246,6 +289,10 @@ export const DEFAULT_ADAPTERS: ServiceAdapter[] = [
         icon: 'Bot',
         inputSelector: '.editable__QRoAFgYA, div[role="textbox"], div[contenteditable="true"]',
         submitSelector: 'div[class*="send-btn"], div[class*="submit"], button[class*="send"], div[role="button"]:not([disabled]) svg, .send-button'
+        ,
+        category: 'chinese',
+        tags: ['中文', '通用'],
+        stabilityLevel: 'fragile'
     },
     {
         id: 'kimi',
@@ -254,6 +301,10 @@ export const DEFAULT_ADAPTERS: ServiceAdapter[] = [
         icon: 'Bot',
         inputSelector: '.chat-input-editor',
         submitSelector: '.send-button-container'
+        ,
+        category: 'chinese',
+        tags: ['中文', '长文本'],
+        stabilityLevel: 'medium'
     },
     {
         id: 'deepseek',
@@ -262,6 +313,10 @@ export const DEFAULT_ADAPTERS: ServiceAdapter[] = [
         icon: 'Bot',
         inputSelector: '#chat-input, textarea, div[contenteditable="true"][role="textbox"]',
         submitSelector: '' // Force Enter key - DeepSeek's button has framework-level state validation that blocks programmatic clicks
+        ,
+        category: 'coding',
+        tags: ['代码', '中文', '通用'],
+        stabilityLevel: 'medium'
     },
     {
         id: 'chatglm',
@@ -305,6 +360,10 @@ export const DEFAULT_ADAPTERS: ServiceAdapter[] = [
                 }
             }
         ]
+        ,
+        category: 'chinese',
+        tags: ['中文', '代码'],
+        stabilityLevel: 'medium'
     }
 ];
 
