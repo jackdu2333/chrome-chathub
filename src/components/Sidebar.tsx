@@ -1,4 +1,5 @@
-import { Pin, PinOff, Settings as SettingsIcon, Sparkles, X, Search } from 'lucide-react';
+import { Pin, PinOff, Settings as SettingsIcon, Sparkles, X, Search, Layers, Check, Trash2 } from 'lucide-react';
+
 import { useState, useMemo } from 'react';
 import { useStore } from '../store';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
@@ -34,6 +35,21 @@ export function Sidebar({
 }: SidebarProps) {
     const [contextMenu, setContextMenu] = useState<{ x: number; y: number; adapterId: string } | null>(null);
     const [searchKeyword, setSearchKeyword] = useState('');
+    const [showSaveDialog, setShowSaveDialog] = useState(false);
+    const [groupName, setGroupName] = useState('');
+
+    const modelGroups = useStore(state => state.modelGroups);
+    const saveModelGroup = useStore(state => state.saveModelGroup);
+    const applyModelGroup = useStore(state => state.applyModelGroup);
+    const deleteModelGroup = useStore(state => state.deleteModelGroup);
+    const activeBotsForGroups = useStore(state => state.activeBots);
+
+    const handleSaveGroup = () => {
+        if (!groupName.trim()) return;
+        saveModelGroup(groupName.trim());
+        setGroupName('');
+        setShowSaveDialog(false);
+    };
 
     const adapterPreferences = useStore(state => state.adapterPreferences);
     const togglePin = useStore(state => state.togglePin);
@@ -254,6 +270,74 @@ export function Sidebar({
 
                 {/* 搜索框 */}
                 <div className="px-3 pb-2">
+                    {/* 模型组合区 */}
+                    <div className="mb-2">
+                        <div className="flex items-center justify-between px-2 py-1.5">
+                            <span className="sidebar-section-title">模型组合</span>
+                            {activeBotsForGroups.length > 0 && !showSaveDialog && (
+                                <button
+                                    onClick={() => setShowSaveDialog(true)}
+                                    className="rounded-full px-2 py-0.5 text-[11px] text-slate-500 transition-colors hover:bg-white/[0.05] hover:text-slate-300"
+                                >
+                                    保存当前
+                                </button>
+                            )}
+                        </div>
+
+                        {showSaveDialog && (
+                            <div className="flex items-center gap-1.5 px-2 pb-2">
+                                <input
+                                    type="text"
+                                    value={groupName}
+                                    onChange={(e) => setGroupName(e.target.value)}
+                                    onKeyDown={(e) => { if (e.key === 'Enter') handleSaveGroup(); if (e.key === 'Escape') setShowSaveDialog(false); }}
+                                    placeholder="组合名称..."
+                                    autoFocus
+                                    className="min-w-0 flex-1 rounded-[8px] border border-white/[0.08] bg-white/[0.04] px-2.5 py-1.5 text-[12px] text-slate-200 placeholder:text-slate-600 outline-none"
+                                />
+                                <button onClick={handleSaveGroup} className="rounded-full bg-[#bec8d5]/15 p-1.5 text-slate-200 hover:bg-[#bec8d5]/25">
+                                    <Check className="h-3 w-3" />
+                                </button>
+                                <button onClick={() => { setShowSaveDialog(false); setGroupName(''); }} className="rounded-full p-1.5 text-slate-500 hover:bg-white/[0.05]">
+                                    <X className="h-3 w-3" />
+                                </button>
+                            </div>
+                        )}
+
+                        {modelGroups.length === 0 && !showSaveDialog && (
+                            <p className="px-2 py-1 text-[11px] text-slate-600">暂无组合，打开几个模型后点"保存当前"</p>
+                        )}
+
+                        {modelGroups.map(group => (
+                            <div key={group.id} className="group/item mb-1 flex items-center gap-1.5 px-2">
+                                <button
+                                    onClick={() => applyModelGroup(group.id, 'replace')}
+                                    onContextMenu={(e) => { e.preventDefault(); }}
+                                    className="flex min-w-0 flex-1 items-center gap-1.5 rounded-[8px] border border-white/[0.05] bg-white/[0.02] px-2.5 py-1.5 text-left transition-colors hover:border-white/[0.1] hover:bg-white/[0.04]"
+                                    title={`${group.adapterIds.length} 个模型`}
+                                >
+                                    <Layers className="h-3 w-3 shrink-0 text-slate-500" />
+                                    <span className="truncate text-[12px] text-slate-300">{group.name}</span>
+                                    <span className="shrink-0 text-[10px] text-slate-600">{group.adapterIds.length}</span>
+                                </button>
+                                <button
+                                    onClick={() => applyModelGroup(group.id, 'append')}
+                                    className="shrink-0 rounded-full px-1.5 py-1 text-[10px] text-slate-500 opacity-0 transition-opacity hover:text-slate-300 group-hover/item:opacity-100"
+                                    title="追加到当前"
+                                >
+                                    +
+                                </button>
+                                <button
+                                    onClick={() => deleteModelGroup(group.id)}
+                                    className="shrink-0 rounded-full p-1 text-slate-600 opacity-0 transition-opacity hover:text-red-400 group-hover/item:opacity-100"
+                                    title="删除组合"
+                                >
+                                    <Trash2 className="h-3 w-3" />
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+
                     <div className="flex items-center gap-2 rounded-[12px] border border-white/[0.07] bg-white/[0.03] px-3 py-2">
                         <Search className="h-3.5 w-3.5 shrink-0 text-slate-500" />
                         <input

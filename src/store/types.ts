@@ -21,6 +21,17 @@ export interface LastSendSummary {
     items: SendResultItem[];
 }
 
+
+// 模型组合：用户保存的常用模型组（非自动推荐，完全由用户管理）
+export interface ModelGroup {
+    id: string;
+    name: string;
+    adapterIds: string[];
+    description?: string;
+    createdAt: number;
+    updatedAt: number;
+}
+
 export interface BotSlice {
     activeBots: ChatBot[];
     availableAdapters: ServiceAdapter[];
@@ -75,4 +86,14 @@ export interface SettingsSlice {
     loadSettings: () => Promise<void>;
 }
 
-export type AppState = BotSlice & UISlice & SettingsSlice;
+
+export interface ModelGroupSlice {
+    modelGroups: ModelGroup[];
+    saveModelGroup: (name: string, description?: string) => void;
+    applyModelGroup: (groupId: string, mode: 'replace' | 'append') => void;
+    deleteModelGroup: (groupId: string) => void;
+    renameModelGroup: (groupId: string, name: string) => void;
+    loadModelGroups: () => Promise<void>;
+}
+
+export type AppState = BotSlice & UISlice & SettingsSlice & ModelGroupSlice;
