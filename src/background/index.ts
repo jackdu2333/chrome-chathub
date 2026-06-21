@@ -102,31 +102,56 @@ async function resolveContentScriptFiles() {
 async function updateContentScriptRegistrations() {
   try {
     const adapters = await getAllAdapters();
-    const matches = Array.from(
+    const allMatches = Array.from(
       new Set(adapters.map((adapter) => toMatchPattern(adapter.url)).filter(Boolean))
     ) as string[];
 
-    const js = await resolveContentScriptFiles();
-    const existingScripts = await chrome.scripting.getRegisteredContentScripts();
-    if (existingScripts.length > 0) {
-      await chrome.scripting.unregisterContentScripts({
-        ids: existingScripts.map((script) => script.id),
-      });
+    // 过滤掉未授权的域名，避免一个未授权 custom adapter 拖垮全部注册
+    const authorizedMatches: string[] = [];
+    for (const match of allMatches) {
+      try {
+        const hasPermission = await chrome.permissions.contains({ origins: [match] });
+        if (hasPermission) {
+          authorizedMatches.push(match);
+        } else {
+          console.warn('[ChatHub] Skipping unauthorized match:', match);
+        }
+      } catch {
+        // permissions API 不可用时，默认尝试注册（内置域名在 host_permissions 里）
+        authorizedMatches.push(match);
+      }
     }
 
-    if (!matches.length) {
+    const js = await resolveContentScriptFiles();
+
+    // 先尝试注册新的，成功后再清理旧的，避免中间态全空
+    let newRegistrationId = CONTENT_SCRIPT_ID;
+    try {
+      // 如果旧的已存在，先尝试更新
+      const existingScripts = await chrome.scripting.getRegisteredContentScripts();
+      if (existingScripts.length > 0) {
+        await chrome.scripting.unregisterContentScripts({
+          ids: existingScripts.map((script) => script.id),
+        });
+      }
+    } catch {
+      // unregister 失败不阻塞后续注册
+    }
+
+    if (!authorizedMatches.length) {
+      console.warn('[ChatHub] No authorized matches for content script registration');
       return;
     }
 
     await chrome.scripting.registerContentScripts([{
-      id: CONTENT_SCRIPT_ID,
-      matches,
+      id: newRegistrationId,
+      matches: authorizedMatches,
       js,
       allFrames: true,
       runAt: 'document_idle',
     }]);
 
-    console.log('[ChatHub] Registered dynamic content script for matches:', matches);
+    console.log('[ChatHub] Registered dynamic content script for authorized matches:', authorizedMatches);
   } catch (error) {
     console.error('[ChatHub] Failed to register content scripts:', error);
   }

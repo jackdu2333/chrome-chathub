@@ -46,10 +46,25 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
         return selector.selector;
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!name.trim() || !url.trim()) {
             alert('名称和网址不能为空！');
             return;
+        }
+
+        // 自定义域名需要请求 host 权限，否则 content script 无法注入
+        try {
+            const origin = new URL(url).origin + '/*';
+            const hasPermission = await chrome.permissions.contains({ origins: [origin] });
+            if (!hasPermission) {
+                const granted = await chrome.permissions.request({ origins: [origin] });
+                if (!granted) {
+                    alert('未授予该站点访问权限，content script 将无法注入。\n请在弹窗中允许访问。');
+                    return;
+                }
+            }
+        } catch {
+            // chrome.permissions 可能在某些环境下不可用，继续保存
         }
 
         const adapter: ServiceAdapter = {
@@ -111,6 +126,22 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
             setTestResult({ ok: false, message: '请先填写网址' });
             return;
         }
+
+        // 测试前确保有 host 权限
+        try {
+            const origin = new URL(url).origin + '/*';
+            const hasPermission = await chrome.permissions.contains({ origins: [origin] });
+            if (!hasPermission) {
+                const granted = await chrome.permissions.request({ origins: [origin] });
+                if (!granted) {
+                    setTestResult({ ok: false, message: '未授予该站点权限，无法注入 content script' });
+                    return;
+                }
+            }
+        } catch {
+            // continue
+        }
+
         setTesting(true);
         setTestResult(null);
         try {
