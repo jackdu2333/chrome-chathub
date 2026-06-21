@@ -262,3 +262,8 @@ setInputDisplayMode: (mode: 'always' | 'auto-hide') => void;
 - F4 快捷键：Cmd/Ctrl+Enter 发送全部、Cmd/Ctrl+Shift+Enter 发送当前窗口
 - 自定义 adapter 测试按钮：Settings 中可测试 selector 是否匹配目标页面
 - content script 新增 CHAT_HUB_TEST_SELECTORS 消息处理
+
+### UI 修复（2026-06-21 实机测试后）
+
+- `731da72`: 布局切换器从绝对定位改为 flex 行 → 占据空间与 ChatFrame 按钮不冲突
+- `97bb7a3`: 改为浮动左上角（absolute left-3 top-3），60% opacity hover 100%，不消耗布局空间，窗口获得完整高度
