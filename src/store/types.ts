@@ -5,6 +5,11 @@ export type UIThemeVariant = 'morandi' | 'bold';
 // 发送目标模式：用户手动选择消息发送到哪些窗口
 export type SendTargetMode = 'all' | 'focused' | 'selected';
 
+// 工作区布局模式
+export type WorkspaceLayoutMode = 'grid' | 'primary-secondary' | 'focus' | 'vertical';
+
+
+
 // 发送结果反馈（每次发送后生成一份摘要）
 export interface SendResultItem {
     instanceId: string;
@@ -57,6 +62,9 @@ export interface UISlice {
     gridLayout: 'single' | 'split' | 'grid';
     isDarkMode: boolean;
     isInputCollapsed: boolean;
+    // 工作区布局
+    layoutMode: WorkspaceLayoutMode;
+    setLayoutMode: (mode: WorkspaceLayoutMode) => void;
     // 发送目标状态
     sendTargetMode: SendTargetMode;
     selectedTargetInstanceIds: string[];

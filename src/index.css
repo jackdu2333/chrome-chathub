@@ -846,3 +846,31 @@ html:not(.dark) .placeholder\:text-slate-500::placeholder {
   color: var(--text-faint) !important;
 }
 
+
+  /* ─── Phase 4: Layout Modes ─── */
+
+  /* Primary-Secondary: 主窗口占大，副窗口排在右侧 */
+  .chat-layout-primary-secondary {
+    grid-template-columns: 2fr 1fr;
+    grid-auto-rows: 1fr;
+  }
+  /* 第一个 item 跨越所有行 */
+  .chat-layout-primary-secondary > .chat-grid-item:first-child {
+    grid-row: 1 / -1;
+  }
+
+  /* Focus: 第一个占满，其余缩为侧边卡片 */
+  .chat-layout-focus {
+    grid-template-columns: 3fr 1fr;
+    grid-auto-rows: minmax(120px, 1fr);
+  }
+  .chat-layout-focus > .chat-grid-item:first-child {
+    grid-row: 1 / -1;
+  }
+
+  /* Vertical: 纵向堆叠，适合窄屏或大量模型 */
+  .chat-layout-vertical {
+    grid-template-columns: 1fr;
+    grid-auto-rows: minmax(200px, 1fr);
+    overflow-y: auto;
+  }

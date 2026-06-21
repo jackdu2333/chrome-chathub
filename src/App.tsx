@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Layers3 } from 'lucide-react';
+import { Layers3, LayoutGrid, Columns2, Focus, Rows3 } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -34,6 +34,8 @@ function App() {
   const uiThemeVariant = useStore((state) => state.uiThemeVariant);
   const themeMode = useStore((state) => state.themeMode || 'system');
   const setDarkMode = useStore((state) => state.setDarkMode);
+  const layoutMode = useStore((state) => state.layoutMode);
+  const setLayoutMode = useStore((state) => state.setLayoutMode);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -110,6 +112,9 @@ function App() {
 
   const getDynamicGridClass = () => {
     const count = activeBots.length;
+    if (layoutMode === 'primary-secondary' && count >= 2) return "chat-grid-container chat-layout-primary-secondary";
+    if (layoutMode === 'focus' && count >= 2) return "chat-grid-container chat-layout-focus";
+    if (layoutMode === 'vertical') return "chat-grid-container chat-layout-vertical";
     if (count <= 1) return "chat-grid-cols-1";
     if (count === 2) return "chat-grid-cols-2";
     if (count === 3) return "chat-grid-cols-3";
@@ -155,6 +160,31 @@ function App() {
 
       <div className="relative flex h-full min-w-0 flex-1 flex-col p-3">
         <div className="workspace-canvas relative flex h-full min-h-0 flex-col">
+          {/* 布局切换器 */}
+          {activeBots.length >= 2 && (
+            <div className="absolute right-3 top-3 z-20 flex items-center gap-0.5 rounded-full border border-white/[0.06] bg-white/[0.03] p-0.5 backdrop-blur-md">
+              {([
+                { mode: 'grid', icon: LayoutGrid, label: '均分' },
+                { mode: 'primary-secondary', icon: Columns2, label: '主次' },
+                { mode: 'focus', icon: Focus, label: '焦点' },
+                { mode: 'vertical', icon: Rows3, label: '纵向' },
+              ] as const).map(({ mode, icon: Icon, label }) => (
+                <button
+                  key={mode}
+                  onClick={() => setLayoutMode(mode)}
+                  className={cn(
+                    "flex h-7 w-7 items-center justify-center rounded-full transition-all",
+                    layoutMode === mode
+                      ? "bg-[#bec8d5]/15 text-[#f1f6f3]"
+                      : "text-slate-500 hover:text-slate-300"
+                  )}
+                  title={label}
+                >
+                  <Icon className="h-3.5 w-3.5" />
+                </button>
+              ))}
+            </div>
+          )}
           <div
             className={cn(
               "flex-1 min-h-0 overflow-hidden transition-all duration-300",
