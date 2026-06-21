@@ -10,7 +10,17 @@
         "scripting"
     ],
     "host_permissions": [
-        "<all_urls>"
+        "https://chatgpt.com/*",
+        "https://web.tabbitbrowser.com/*",
+        "https://claude.ai/*",
+        "https://gemini.google.com/*",
+        "https://copilot.microsoft.com/*",
+        "https://www.doubao.com/*",
+        "https://www.qianwen.com/*",
+        "https://yiyan.baidu.com/*",
+        "https://www.kimi.com/*",
+        "https://chat.deepseek.com/*",
+        "https://chatglm.cn/*"
     ],
     "declarative_net_request": {
         "rule_resources": [
@@ -43,7 +53,17 @@
     "content_scripts": [
         {
             "matches": [
-                "<all_urls>"
+                "https://chatgpt.com/*",
+                "https://web.tabbitbrowser.com/*",
+                "https://claude.ai/*",
+                "https://gemini.google.com/*",
+                "https://copilot.microsoft.com/*",
+                "https://www.doubao.com/*",
+        "https://www.qianwen.com/*",
+        "https://yiyan.baidu.com/*",
+        "https://www.kimi.com/*",
+        "https://chat.deepseek.com/*",
+        "https://chatglm.cn/*"
             ],
             "js": [
                 "src/content/index.ts"
@@ -59,7 +79,12 @@
                 "assets/*"
             ],
             "matches": [
-                "<all_urls>"
+                "https://chatgpt.com/*",
+                "https://claude.ai/*",
+                "https://gemini.google.com/*",
+                "https://www.doubao.com/*",
+                "https://www.qianwen.com/*",
+                "https://chatglm.cn/*"
             ]
         }
     ]

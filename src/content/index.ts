@@ -21,6 +21,8 @@ import {
 } from './dom/actions';
 
 console.log('[ChatHub Content] Script loaded for:', window.location.hostname);
+// 生产环境不打印用户 prompt 内容
+const DEBUG = import.meta.env.DEV;
 
 // Store for current adapter
 let currentAdapter: ServiceAdapter | undefined;
@@ -57,7 +59,9 @@ function getCapabilities(): DriverCapabilities {
 }
 
 function postToParent(message: ContentToHubMessage) {
-    window.parent.postMessage(message, '*');
+    // 安全加固：用 extension origin 替代通配符 '*'
+    const extensionOrigin = `chrome-extension://${chrome.runtime.id}`;
+    window.parent.postMessage(message, extensionOrigin);
 }
 
 function emitFrameStatus(status: FrameStatus, reason?: string, detail?: string) {
@@ -401,7 +405,9 @@ async function handleUserMessage(
     { text, autoSubmit, files }: UserMessagePayload,
     context?: { trace: (entry: Omit<DriverTraceEntry, 'timestamp'>) => void }
 ) {
-    console.log('[ChatHub Content] 🔄 Processing message:', { text: text.substring(0, 50), autoSubmit, filesCount: files?.length });
+    if (DEBUG) {
+        console.log('[ChatHub Content] Processing message:', { textLength: text.length, autoSubmit, filesCount: files?.length });
+    }
 
     await adapterReadyPromise;
     await waitForCurrentAdapterReady(currentStatus !== 'ready');
@@ -481,5 +487,4 @@ function showNotification(message: string, type: 'success' | 'warning' | 'error'
         }, 300);
     }, 2000);
 }
-
 

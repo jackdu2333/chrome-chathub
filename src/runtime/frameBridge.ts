@@ -26,7 +26,17 @@ function postToFrame(instanceId: string, message: HubToContentMessage) {
     throw new Error('FRAME_NOT_AVAILABLE');
   }
 
-  frameWindow.postMessage(message, '*');
+  // 安全加固：用 iframe 的 origin 替代通配符 '*'
+  const frame = frameRegistry.get(instanceId);
+  let targetOrigin = '*';
+  if (frame?.src) {
+    try {
+      targetOrigin = new URL(frame.src).origin;
+    } catch {
+      // URL 解析失败时回退到通配符（如 src 尚未设置）
+    }
+  }
+  frameWindow.postMessage(message, targetOrigin);
 }
 
 export function requestFrameHello(instanceId: string) {
