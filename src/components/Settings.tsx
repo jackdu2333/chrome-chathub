@@ -308,6 +308,28 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
                             </div>
                         </div>
 
+                        {/* 授权域名 */}
+                        <div className="mb-5 rounded-xl border border-black/5 bg-white/45 p-4 dark:border-white/10 dark:bg-white/5">
+                            <h3 className="text-[13px] font-medium uppercase tracking-wide text-gray-500">
+                                授权域名
+                            </h3>
+                            <p className="mt-2 text-[12px] leading-5 text-gray-500 dark:text-gray-400">
+                                扩展仅请求以下 AI 平台的访问权限，不请求全站权限。
+                            </p>
+                            <div className="mt-3 flex flex-wrap gap-1.5">
+                                {[
+                                    'chatgpt.com', 'claude.ai', 'gemini.google.com',
+                                    'copilot.microsoft.com', 'doubao.com', 'qianwen.com',
+                                    'yiyan.baidu.com', 'kimi.com', 'deepseek.com',
+                                    'chatglm.cn', 'tabbitbrowser.com'
+                                ].map(domain => (
+                                    <span key={domain} className="rounded-full border border-black/8 bg-white/40 px-2.5 py-1 text-[11px] text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
+                                        {domain}
+                                    </span>
+                                ))}
+                            </div>
+                        </div>
+
                         {/* Custom Services List */}
                         {customAdapters.length > 0 && !editingId && (
                             <div className="space-y-4 mb-8">
