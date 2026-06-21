@@ -1,10 +1,11 @@
 import { useEffect, useState, useRef } from 'react';
-import { RefreshCw, Maximize2, Minimize2, XCircle, GripVertical, Check } from 'lucide-react';
+import { RefreshCw, Maximize2, Minimize2, XCircle, GripVertical, Check, Stethoscope } from 'lucide-react';
 
 import { cn } from '../lib/utils';
 import { useStore } from '../store';
 import type { ChatBot } from '../types';
 import { registerFrame, unregisterFrame } from '../runtime/frameRegistry';
+import { AdapterDiagnostics } from './AdapterDiagnostics';
 import { requestFrameHello } from '../runtime/frameBridge';
 import { useFrameSessionStore } from '../runtime/useFrameSessionStore';
 
@@ -21,6 +22,7 @@ interface ChatFrameProps {
 
 export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, className, dragListeners, isDragging }: ChatFrameProps) {
     const [reloadKey, setReloadKey] = useState(0);
+    const [showDiagnostics, setShowDiagnostics] = useState(false);
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const isDarkMode = useStore(state => state.isDarkMode);
     // selected 模式：发送目标勾选
@@ -205,6 +207,14 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, className, 
                         </button>
 
                         <button
+                            onClick={() => setShowDiagnostics(true)}
+                            className="btn-icon scale-[0.92]"
+                            title="诊断"
+                        >
+                            <Stethoscope className="w-4 h-4" />
+                        </button>
+
+                        <button
                             onClick={onToggleFocus}
                             className="btn-icon scale-[0.92]"
                             title={isFocused ? "最小化" : "最大化"}
@@ -242,6 +252,12 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, className, 
                     />
                 </div>
             </div>
+
+            <AdapterDiagnostics
+                bot={bot}
+                isOpen={showDiagnostics}
+                onClose={() => setShowDiagnostics(false)}
+            />
         </div>
     );
 }
