@@ -1,39 +1,45 @@
 # Chrome ChatHub
 
-> 手动选择模型的多 AI 对比工作台。用户自己选模型、选发送范围、观察对比。工具不替用户做决定。
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![Node](https://img.shields.io/badge/node-%3E%3D18-green.svg)](package.json)
+[![Chrome](https://img.shields.io/badge/chrome-MV3-green.svg)](src/manifest.json)
 
-Chrome 扩展：单一界面同时与多个 AI 服务对话，统一输入广播到所有窗口，支持文件上传、拖拽排序、macOS 风格 UI。
+> Multi-AI comparison workspace where **you** choose the models, the targets, and observe the results. The tool doesn't make decisions for you.
 
-## 核心功能
+Chrome extension: chat with multiple AI services simultaneously in a single interface. Unified input broadcasts to all windows, with file upload, drag-and-drop sorting, and macOS-style UI.
 
-- **多窗口 AI 聚合**：响应式网格布局，iframe 嵌入第三方 AI 网站
-- **发送目标系统**：全部窗口 / 当前窗口 / 自选窗口三种模式，明确知道发给了谁
-- **草稿保护**：部分失败时保留草稿，全部成功才清空
-- **发送结果反馈**：toast 提示成功/部分失败/全部失败，失败原因可查看
-- **模型搜索与分组**：按名称/域名/标签搜索，按通用/中文/编程/搜索分类分组
-- **模型组合**：保存常用对比组合，一键替换或追加
-- **模型栏**：macOS 风格 drawer，置顶按钮外显，稳定等级标记
-- **布局系统**：均分 / 主次 / 焦点 / 纵向四种布局模式
-- **诊断面板**：每个窗口可查看状态、能力检测、错误码中文解释、selector 配置
-- **自定义 Adapter**：添加/编辑/删除 AI 服务，支持 selector 测试
-- **键盘快捷键**：Enter 发送 / Cmd+Ctrl+Enter 发全部 / Cmd+Ctrl+Shift+Enter 发当前
+## Features
 
-## 已适配服务
+- **Multi-window AI aggregation** — responsive grid layout, iframe-embedded third-party AI sites
+- **Send target system** — all windows / current window / custom selection, always know who received your message
+- **Draft protection** — drafts preserved on partial failure, cleared only when all succeed
+- **Result feedback** — toast notifications for success / partial failure / all failed
+- **Model search & grouping** — search by name/domain/tags, group by general / chinese / coding / search
+- **Model combos** — save favorite comparison combos, one-click replace or append
+- **Model drawer** — macOS-style drawer, pinned button, stability level badges
+- **Layout system** — grid / primary-scroll / focus / vertical
+- **Diagnostics panel** — per-window status, capability detection, error code translations, selector config
+- **Custom adapters** — add / edit / delete AI services with selector testing
+- **Keyboard shortcuts** — Enter to send / Cmd+Ctrl+Enter for all / Cmd+Ctrl+Shift+Enter for current
 
-ChatGPT / Gemini / 豆包 / 千问 / 文心一言 / Kimi / DeepSeek / ChatGLM / Copilot / Claude / Tabbit
+## Supported Services
+
+ChatGPT / Gemini / Doubao (豆包) / Qianwen (千问) / YiYan (文心一言) / Kimi / DeepSeek / ChatGLM / Copilot / Claude / Tabbit
+
+*Add more via Settings → Custom Adapter.*
 
 ## Tech Stack
 
-| 层 | 技术 |
+| Layer | Technology |
 |---|---|
-| 前端框架 | React 19 + TypeScript |
-| 状态管理 | Zustand（chrome.storage.local 持久化，4 slice 架构）|
-| 样式 | Tailwind CSS（macOS 风格 glassmorphism）|
-| 拖拽 | @dnd-kit/core + @dnd-kit/sortable |
-| 图标 | Lucide React |
-| 构建 | Vite + CRXJS |
-| 测试 | Vitest |
-| 扩展规范 | Chrome Extension Manifest V3 |
+| Frontend | React 19 + TypeScript |
+| State | Zustand (chrome.storage.local persistence, 4 slices) |
+| Styling | Tailwind CSS (macOS-style glassmorphism) |
+| Drag & Drop | @dnd-kit/core + @dnd-kit/sortable |
+| Icons | Lucide React |
+| Build | Vite + CRXJS |
+| Testing | Vitest |
+| Extension | Chrome Extension Manifest V3 |
 
 ## Getting Started
 
@@ -47,6 +53,8 @@ npm -v
 ### Installation
 
 ```bash
+git clone https://github.com/jackdu2333/chrome-chathub.git
+cd chrome-chathub
 npm install
 ```
 
@@ -61,6 +69,7 @@ npm run dev
 ```bash
 npm run build
 ```
+
 Output: `dist/` folder.
 
 ### Load into Chrome
@@ -80,30 +89,71 @@ npm run check         # lint + test + build
 ## Architecture
 
 ```
-浏览器层 (App.tsx + Zustand Store)
+Browser Layer (App.tsx + Zustand Store)
   ↓
-窗口层 (ChatFrame iframe)
+Window Layer (ChatFrame iframe)
   ↓ postMessage
-注入层 (Content Script + Drivers)
+Injection Layer (Content Script + Drivers)
   ↓ DOM Control
-AI 服务网站
+AI Service Websites
 ```
 
-**Store 架构（4 slices）：**
-- `botSlice` — activeBots, adapter CRUD, 偏好
-- `uiSlice` — 布局模式, 发送目标模式, 聚焦状态
-- `settingsSlice` — 同步开关, 草稿, 主题, 输入框模式, 发送结果
-- `modelGroupSlice` — 模型组合 CRUD + 持久化
+**Store Architecture (4 slices):**
+- `botSlice` — activeBots, adapter CRUD, preferences
+- `uiSlice` — layout mode, send target mode, focus state
+- `settingsSlice` — sync toggle, drafts, theme, input mode, send results
+- `modelGroupSlice` — model combo CRUD + persistence
 
-**Driver 架构：** 按站点拆分（openai/doubao/chatglm/qianwen/gemini/generic），配置 + driver 双层结构。
+**Driver Architecture:** Per-site drivers (openai/doubao/chatglm/qianwen/gemini/generic), config + driver two-layer pattern.
 
 ## Design System
 
 - **Font**: System Stack (`-apple-system`, `BlinkMacSystemFont`)
-- **Theme**: Dynamic Light/Dark mode + 手动切换 + 高对比度浅色模式
-- **UI 风格**: 莫兰迪 / 大胆版（高对比莫兰迪）
+- **Theme**: Dynamic Light/Dark mode + manual toggle + high-contrast light mode
+- **UI Style**: Morandi / Bold (high-contrast Morandi)
 
-## Repository
+## Project Structure
 
-- **远程**: `git@github.com:jackdu2333/chrome-chathub.git`
-- **版本**: 3.9.0
+```
+src/
+├── background/         # Service worker (DNR rules, content script registration)
+├── components/         # React components (ChatFrame, Sidebar, Settings, etc.)
+├── content/            # Content scripts + DOM drivers
+│   ├── dom/            # DOM manipulation utilities
+│   └── drivers/        # Per-site AI platform drivers
+├── hooks/              # Custom React hooks
+├── lib/                # Utilities (broadcast, resolveTargets)
+├── runtime/            # Frame bridge, protocol, session store
+├── store/              # Zustand store (4 slices)
+└── types.ts            # Shared TypeScript types
+```
+
+## Contributing
+
+Contributions are welcome! Here's how to get started:
+
+1. Fork the repo
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes
+4. Run `npm run check` to ensure lint + test + build pass
+5. Commit your changes (`git commit -m 'feat: add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
+
+### Adding a New AI Platform
+
+1. Add the adapter config to `DEFAULT_ADAPTERS` in `src/types.ts`
+2. Create a driver in `src/content/drivers/` if needed
+3. Add the domain to `host_permissions` in `src/manifest.json`
+4. Add to `content_scripts.matches` in `src/manifest.json`
+5. Test with `npm run check`
+
+## License
+
+[Apache License 2.0](LICENSE) — Copyright 2026 jackdu2333
+
+## Acknowledgments
+
+- [CRXJS Vite Plugin](https://crxjs.dev/vite-plugin) for seamless Chrome extension development with Vite
+- [Lucide](https://lucide.dev/) for beautiful icons
+- All the AI platforms that make this possible

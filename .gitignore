@@ -12,6 +12,9 @@ dist
 dist-ssr
 *.local
 
+# Backup folders
+chrome_chat_backup_*/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

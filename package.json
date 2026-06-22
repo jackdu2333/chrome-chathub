@@ -1,8 +1,28 @@
 {
   "name": "chrome-chathub",
-  "private": true,
   "version": "3.9.0",
+  "description": "A Chrome extension for chatting with multiple AI services simultaneously in a single interface",
+  "private": false,
   "type": "module",
+  "license": "Apache-2.0",
+  "author": "jackdu2333",
+  "homepage": "https://github.com/jackdu2333/chrome-chathub#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jackdu2333/chrome-chathub.git"
+  },
+  "bugs": {
+    "url": "https://github.com/jackdu2333/chrome-chathub/issues"
+  },
+  "keywords": [
+    "chrome-extension",
+    "ai-chat",
+    "multi-model",
+    "chatgpt",
+    "claude",
+    "gemini",
+    "deepseek"
+  ],
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
@@ -40,8 +60,7 @@
     "tailwindcss": "^3.4.17",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
-    "vite": "^7.2.4"
-    ,
+    "vite": "^7.2.4",
     "vitest": "^3.2.4",
     "@vitest/ui": "^3.2.4"
   }
