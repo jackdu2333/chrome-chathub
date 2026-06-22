@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { RefreshCw, Maximize2, Minimize2, XCircle, GripVertical, Check, Stethoscope, ArrowLeftToLine, Wifi, Search } from 'lucide-react';
+import { RefreshCw, Maximize2, Minimize2, XCircle, GripVertical, Check, Stethoscope, ArrowLeftToLine, Wifi, Search, ExternalLink } from 'lucide-react';
 
 import { cn } from '../lib/utils';
 import { useStore } from '../store';
@@ -261,6 +261,14 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, onSetPrimar
                             title="诊断"
                         >
                             <Stethoscope className="w-4 h-4" />
+                        </button>
+
+                        <button
+                            onClick={() => { window.open(bot.url, '_blank'); }}
+                            className="btn-icon scale-[0.92]"
+                            title="在新标签页打开（解决登录态问题）"
+                        >
+                            <ExternalLink className="w-4 h-4" />
                         </button>
 
                         <button
