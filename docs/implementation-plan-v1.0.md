@@ -1,4 +1,4 @@
-# JackDu ChatHub 改进实施方案 v1.0
+# Chrome ChatHub 改进实施方案 v1.0
 
 > SSOT 文档。所有 Phase 的设计决策、数据结构、文件级落点和验收标准以此为准。
 > 计划书原文存档于 Obsidian 00_Inbox/ChatHub改进计划书-v1.0.md

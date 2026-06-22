@@ -1,4 +1,4 @@
-# JackDu ChatHub 重构设计方案
+# Chrome ChatHub 重构设计方案
 
 **版本**: 0.1  
 **日期**: 2026-03-25  

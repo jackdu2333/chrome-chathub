@@ -1,8 +1,8 @@
-# JackDu ChatHub - 系统详细设计说明书
+# Chrome ChatHub - 系统详细设计说明书
 
 **版本**: 1.1.0  
 **更新日期**: 2026-02-09  
-**项目名称**: JackDu ChatHub (多 AI 对话聚合器)
+**项目名称**: Chrome ChatHub (多 AI 对话聚合器)
 
 ---
 
