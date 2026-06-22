@@ -1,14 +1,27 @@
 import { useEffect, useState, useRef } from 'react';
-import { RefreshCw, Maximize2, Minimize2, XCircle, GripVertical, Check, Stethoscope, ArrowLeftToLine, Wifi } from 'lucide-react';
+import { RefreshCw, Maximize2, Minimize2, XCircle, GripVertical, Check, Stethoscope, ArrowLeftToLine, Wifi, Search } from 'lucide-react';
 
 import { cn } from '../lib/utils';
 import { useStore } from '../store';
 import type { ChatBot } from '../types';
 import { registerFrame, unregisterFrame } from '../runtime/frameRegistry';
 import { AdapterDiagnostics } from './AdapterDiagnostics';
-import { requestFrameHello } from '../runtime/frameBridge';
+import { requestFrameHello, probeSelectors } from '../runtime/frameBridge';
 import { useFrameSessionStore } from '../runtime/useFrameSessionStore';
-import { FRAME_LOAD_PHASE_LABELS } from '../runtime/protocol';
+import { FRAME_LOAD_PHASE_LABELS, FrameLoadPhase } from '../runtime/protocol';
+
+// v1.2: phase 级别用户侧提示
+const LOAD_PHASE_HINTS: Partial<Record<FrameLoadPhase, string>> = {
+    'content-timeout': '脚本未连接。可能原因：站点权限不足、页面加载过慢。建议：点击重试连接，如仍失败再刷新窗口。',
+    'selector-error': '没有找到输入框或发送按钮。可能是平台改版或未进入聊天页面。建议：确认已登录后点击重新检测。',
+    'login-required': '当前平台可能未登录。请在该窗口完成登录后点击重试连接。',
+    'permission-missing': '缺少该站点访问权限。请在设置中授权后重新加载窗口。',
+    'adapter-not-found': '当前页面未匹配到可用适配器。请检查 URL 或自定义 Adapter 配置。',
+};
+
+function getLoadPhaseHint(phase: FrameLoadPhase): string | null {
+    return LOAD_PHASE_HINTS[phase] ?? null;
+}
 
 interface ChatFrameProps {
     bot: ChatBot;
@@ -127,6 +140,12 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, onSetPrimar
                     ? 'bg-slate-500'
                     : 'bg-[#d6c6a9] ring-[3px] ring-[rgba(214,198,169,0.12)]';
 
+    // v1.2: phase 级别用户侧提示
+    const phaseHint = session?.loadPhase ? getLoadPhaseHint(session.loadPhase) : null;
+    const tooltipContent = phaseHint
+        ? phaseHint
+        : session?.lastError || session?.lastDetail || statusLabel;
+
     return (
         <div
             className={cn(
@@ -174,7 +193,7 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, onSetPrimar
                         </div>
                         <span
                             className="frame-status-pill"
-                            title={session?.lastError || session?.lastDetail || statusLabel}
+                            title={tooltipContent}
                         >
                             <span className={cn("h-1.5 w-1.5 rounded-full", statusClassName)} />
                             {statusLabel}
@@ -217,6 +236,15 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, onSetPrimar
                                 title="重试连接（不刷新页面）"
                             >
                                 <Wifi className="w-4 h-4" />
+                            </button>
+                        )}
+                        {(session?.loadPhase === 'selector-error' || session?.loadPhase === 'interactive-ready') && (
+                            <button
+                                onClick={() => { probeSelectors(bot.instanceId); }}
+                                className="btn-icon scale-[0.92] text-blue-400 hover:text-blue-300"
+                                title="重新检测输入框和发送按钮"
+                            >
+                                <Search className="w-4 h-4" />
                             </button>
                         )}
                         <button

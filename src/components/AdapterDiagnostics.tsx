@@ -1,10 +1,19 @@
 import { useState } from 'react';
-import { Stethoscope, X, CheckCircle2, XCircle, AlertTriangle, Loader2, Search } from 'lucide-react';
+import { Stethoscope, X, CheckCircle2, XCircle, AlertTriangle, Loader2, Search, Wifi, RefreshCw } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { ChatBot } from '../types';
 import { useFrameSessionStore } from '../runtime/useFrameSessionStore';
-import { probeSelectors } from '../runtime/frameBridge';
-import { FRAME_LOAD_PHASE_LABELS } from '../runtime/protocol';
+import { probeSelectors, requestFrameHello } from '../runtime/frameBridge';
+import { FRAME_LOAD_PHASE_LABELS, FrameLoadPhase } from '../runtime/protocol';
+
+// v1.2: phase 级别用户侧提示
+const LOAD_PHASE_HINTS: Partial<Record<FrameLoadPhase, string>> = {
+    'content-timeout': '脚本未连接。可能原因：站点权限不足、页面加载过慢。建议：点击重试连接，如仍失败再刷新窗口。',
+    'selector-error': '没有找到输入框或发送按钮。可能是平台改版或未进入聊天页面。建议：确认已登录后点击重新检测。',
+    'login-required': '当前平台可能未登录。请在该窗口完成登录后点击重试连接。',
+    'permission-missing': '缺少该站点访问权限。请在设置中授权后重新加载窗口。',
+    'adapter-not-found': '当前页面未匹配到可用适配器。请检查 URL 或自定义 Adapter 配置。',
+};
 
 interface AdapterDiagnosticsProps {
     bot: ChatBot;
@@ -122,6 +131,32 @@ export function AdapterDiagnostics({ bot, isOpen, onClose }: AdapterDiagnosticsP
                                 {session.health.submitSelectorFound !== undefined && (
                                     <HealthRow label="发送按钮选择器" ok={session.health.submitSelectorFound} />
                                 )}
+                                {session.health.loginRequired !== undefined && (
+                                    <HealthRow label="登录状态" ok={!session.health.loginRequired} />
+                                )}
+                                {session.health.permissionMissing !== undefined && (
+                                    <HealthRow label="站点权限" ok={!session.health.permissionMissing} />
+                                )}
+                                {session.health.lastCheckedAt && (
+                                    <div className="flex items-center justify-between pt-1">
+                                        <span className="text-[10px] text-slate-600">最近检查</span>
+                                        <span className="text-[10px] text-slate-600">
+                                            {new Date(session.health.lastCheckedAt).toLocaleTimeString('zh-CN')}
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* v1.2: 用户侧提示 */}
+                    {session?.loadPhase && LOAD_PHASE_HINTS[session.loadPhase] && (
+                        <div className="border-t border-white/[0.06] pt-2.5">
+                            <span className="text-[12px] text-slate-500">提示</span>
+                            <div className="mt-1.5 rounded-lg border border-amber-500/15 bg-amber-950/20 px-3 py-2">
+                                <p className="text-[12px] leading-5 text-amber-200/80">
+                                    {LOAD_PHASE_HINTS[session.loadPhase]}
+                                </p>
                             </div>
                         </div>
                     )}
@@ -168,6 +203,44 @@ export function AdapterDiagnostics({ bot, isOpen, onClose }: AdapterDiagnosticsP
                             <SelectorRow label="输入框" value={typeof bot.inputSelector === 'string' ? bot.inputSelector : JSON.stringify(bot.inputSelector).slice(0, 80)} />
                             <SelectorRow label="发送按钮" value={typeof bot.submitSelector === 'string' ? bot.submitSelector : JSON.stringify(bot.submitSelector).slice(0, 80)} />
                             <SelectorRow label="就绪检测" value={bot.readySelector ? (typeof bot.readySelector === 'string' ? bot.readySelector : JSON.stringify(bot.readySelector).slice(0, 80)) : '未设置'} />
+                        </div>
+                    </div>
+
+                    {/* 恢复操作 */}
+                    <div className="border-t border-white/[0.06] pt-2.5">
+                        <div className="flex gap-2">
+                            {(session?.loadPhase === 'content-timeout' || session?.loadPhase === 'failed') && (
+                                <button
+                                    onClick={() => {
+                                        useFrameSessionStore.getState().markLoadPhase(bot.instanceId, 'content-waiting');
+                                        requestFrameHello(bot.instanceId);
+                                    }}
+                                    className={cn(
+                                        "flex-1 rounded-lg border py-2 text-[12px] font-medium transition-all",
+                                        "border-amber-500/20 bg-amber-950/20 text-amber-400/80 hover:bg-amber-950/40"
+                                    )}
+                                >
+                                    <span className="flex items-center justify-center gap-1.5">
+                                        <Wifi className="h-3 w-3" /> 重试连接
+                                    </span>
+                                </button>
+                            )}
+                            <button
+                                onClick={() => {
+                                    useFrameSessionStore.getState().markBooting(bot.instanceId);
+                                    // Trigger reload via callback not possible here — just reset phase
+                                    useFrameSessionStore.getState().markLoadPhase(bot.instanceId, 'iframe-loading');
+                                }}
+                                className={cn(
+                                    "flex-1 rounded-lg border py-2 text-[12px] font-medium transition-all",
+                                    "border-slate-600/40 bg-slate-900/30 text-slate-400/80 hover:bg-slate-900/50"
+                                )}
+                                title="提示：完全刷新需在窗口标题栏点击刷新按钮"
+                            >
+                                <span className="flex items-center justify-center gap-1.5">
+                                    <RefreshCw className="h-3 w-3" /> 重置状态
+                                </span>
+                            </button>
                         </div>
                     </div>
 
