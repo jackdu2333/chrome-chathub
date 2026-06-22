@@ -8,9 +8,10 @@ interface SortableChatFrameProps {
     isFocused: boolean;
     onToggleFocus: () => void;
     onRemove: () => void;
+    onSetPrimary?: () => void;
 }
 
-export function SortableChatFrame({ bot, isFocused, onToggleFocus, onRemove }: SortableChatFrameProps) {
+export function SortableChatFrame({ bot, isFocused, onToggleFocus, onRemove, onSetPrimary }: SortableChatFrameProps) {
 
     const {
         attributes,
@@ -55,6 +56,7 @@ export function SortableChatFrame({ bot, isFocused, onToggleFocus, onRemove }: S
                 isFocused={isFocused}
                 onToggleFocus={onToggleFocus}
                 onRemove={onRemove}
+                onSetPrimary={onSetPrimary}
                 // Pass listeners only if NOT focused
                 dragListeners={!isFocused ? listeners : undefined}
                 isDragging={isDragging}

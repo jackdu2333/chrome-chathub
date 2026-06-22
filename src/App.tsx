@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Layers3, LayoutGrid, Columns2, Focus, Rows3 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Layers3, LayoutGrid, PanelLeftClose, Focus, Rows3 } from 'lucide-react';
 import {
   DndContext,
   closestCenter,
@@ -18,6 +18,7 @@ import { Settings } from './components/Settings';
 import { useStore } from './store';
 import { cn } from './lib/utils';
 import type { ChatBot } from './types';
+import { resolvePrimaryBot, resolveSecondaryBots } from './lib/resolveTargets';
 import { useBotDragAndDrop } from './hooks/useBotDragAndDrop';
 import { useFrameProtocolBridge } from './runtime/useFrameProtocolBridge';
 
@@ -36,6 +37,8 @@ function App() {
   const setDarkMode = useStore((state) => state.setDarkMode);
   const layoutMode = useStore((state) => state.layoutMode);
   const setLayoutMode = useStore((state) => state.setLayoutMode);
+  const primaryInstanceId = useStore((state) => state.primaryInstanceId);
+  const setPrimaryInstanceId = useStore((state) => state.setPrimaryInstanceId);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -74,7 +77,6 @@ function App() {
   }, [themeMode, setDarkMode]);
 
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  // 聚焦状态绑定窗口实例（instanceId），而非模型类型（bot.id）
   const [focusedInstanceId, setFocusedInstanceId] = useState<string | null>(null);
   const [isModelDrawerOpen, setIsModelDrawerOpen] = useState(false);
 
@@ -103,12 +105,19 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isModelDrawerOpen]);
 
-  // P0-4: 聚焦窗口被关闭/替换后，自动清理失效的 focusedInstanceId
+  // 清理失效的 focusedInstanceId
   useEffect(() => {
     if (focusedInstanceId && !activeBots.some(bot => bot.instanceId === focusedInstanceId)) {
       setFocusedInstanceId(null);
     }
-  }, [activeBots, focusedInstanceId, setFocusedInstanceId]);
+  }, [activeBots, focusedInstanceId]);
+
+  // v1.1: 清理失效的 primaryInstanceId
+  useEffect(() => {
+    if (primaryInstanceId && !activeBots.some(bot => bot.instanceId === primaryInstanceId)) {
+      setPrimaryInstanceId(null);
+    }
+  }, [activeBots, primaryInstanceId, setPrimaryInstanceId]);
 
   useEffect(() => {
     document.body.classList.toggle('ui-variant-bold', uiThemeVariant === 'bold');
@@ -117,15 +126,26 @@ function App() {
     };
   }, [uiThemeVariant]);
 
+  // v1.1: primary-scroll 布局的主窗口/副窗口解析
+  const isPrimaryScroll = layoutMode === 'primary-scroll' && activeBots.length >= 3;
+  const primaryBot = useMemo(
+    () => isPrimaryScroll ? resolvePrimaryBot(activeBots, primaryInstanceId) : null,
+    [isPrimaryScroll, activeBots, primaryInstanceId]
+  );
+  const secondaryBots = useMemo(
+    () => isPrimaryScroll ? resolveSecondaryBots(activeBots, primaryInstanceId) : [],
+    [isPrimaryScroll, activeBots, primaryInstanceId]
+  );
+
   const getDynamicGridClass = () => {
     const count = activeBots.length;
-    if (layoutMode === 'primary-secondary' && count >= 2) return "chat-grid-container chat-layout-primary-secondary";
+    // primary-scroll 在 3+ 窗口时走独立渲染分支，不返回 grid class
     if (layoutMode === 'focus' && count >= 2) return "chat-grid-container chat-layout-focus";
     if (layoutMode === 'vertical') return "chat-grid-container chat-layout-vertical";
     if (count <= 1) return "chat-grid-cols-1";
     if (count === 2) return "chat-grid-cols-2";
     if (count === 3) return "chat-grid-cols-3";
-    return "chat-grid-cols-4"; // 4 or more
+    return "chat-grid-cols-4";
   };
 
   return (
@@ -167,12 +187,12 @@ function App() {
 
       <div className="relative flex h-full min-w-0 flex-1 flex-col p-3">
         <div className="workspace-canvas relative flex h-full min-h-0 flex-col">
-          {/* 布局切换器：浮动左上角，不占布局空间，不遮挡 ChatFrame 右侧按钮 */}
+          {/* 布局切换器：浮动左上角 */}
           {activeBots.length >= 2 && (
             <div className="pointer-events-auto absolute left-3 top-3 z-30 flex items-center gap-0.5 rounded-full border border-white/[0.06] bg-black/30 p-0.5 opacity-60 backdrop-blur-sm transition-opacity hover:opacity-100">
               {([
                 { mode: 'grid', icon: LayoutGrid, label: '均分' },
-                { mode: 'primary-secondary', icon: Columns2, label: '主次' },
+                { mode: 'primary-scroll', icon: PanelLeftClose, label: '主次横滑' },
                 { mode: 'focus', icon: Focus, label: '焦点' },
                 { mode: 'vertical', icon: Rows3, label: '纵向' },
               ] as const).map(({ mode, icon: Icon, label }) => (
@@ -216,7 +236,74 @@ function App() {
                   打开模型栏
                 </button>
               </div>
+            ) : isPrimaryScroll && primaryBot ? (
+              /* v1.1: 主次横滑布局 — 3+ 窗口时独立渲染 */
+              <DndContext
+                sensors={sensors}
+                collisionDetection={closestCenter}
+                onDragStart={handleDragStart}
+                onDragEnd={handleDragEnd}
+              >
+                <div className="chat-layout-primary-scroll">
+                  {/* 主窗口 */}
+                  <div className="chat-layout-primary-scroll-main">
+                    <SortableContext items={[primaryBot.instanceId]} strategy={rectSortingStrategy}>
+                      <div className="chat-grid-item min-h-0 min-w-0 h-full">
+                        <SortableChatFrame
+                          bot={primaryBot}
+                          isFocused={focusedInstanceId === primaryBot.instanceId}
+                          onToggleFocus={() => setFocusedInstanceId(
+                            focusedInstanceId === primaryBot.instanceId ? null : primaryBot.instanceId
+                          )}
+                          onRemove={() => handleToggleBot(primaryBot.id)}
+                        />
+                      </div>
+                    </SortableContext>
+                  </div>
+
+                  {/* 副窗口横向滑动区 */}
+                  <div className="chat-layout-primary-scroll-secondary">
+                    {secondaryBots.length > 1 && (
+                      <div className="absolute right-4 top-1 z-10 rounded-full bg-black/40 px-2.5 py-0.5 text-[10px] text-slate-400 backdrop-blur-sm">
+                        滑动查看 · {secondaryBots.length} 个
+                      </div>
+                    )}
+                    <SortableContext items={secondaryBots.map(b => b.instanceId)} strategy={rectSortingStrategy}>
+                      {secondaryBots.map((bot) => (
+                        <div
+                          key={bot.instanceId}
+                          className="chat-layout-primary-scroll-secondary-item"
+                        >
+                          <SortableChatFrame
+                            bot={bot}
+                            isFocused={focusedInstanceId === bot.instanceId}
+                            onToggleFocus={() => setFocusedInstanceId(
+                              focusedInstanceId === bot.instanceId ? null : bot.instanceId
+                            )}
+                            onRemove={() => handleToggleBot(bot.id)}
+                            onSetPrimary={() => setPrimaryInstanceId(bot.instanceId)}
+                          />
+                        </div>
+                      ))}
+                    </SortableContext>
+                  </div>
+                </div>
+
+                <DragOverlay>
+                  {activeDragId ? (
+                    <ChatFrame
+                      bot={activeBots.find((b) => b.instanceId === activeDragId) as ChatBot}
+                      isFocused={false}
+                      onToggleFocus={() => { }}
+                      onRemove={() => { }}
+                      isDragging={true}
+                      className="h-full opacity-90 cursor-grabbing"
+                    />
+                  ) : null}
+                </DragOverlay>
+              </DndContext>
             ) : (
+              /* 标准网格布局 */
               <DndContext
                 sensors={sensors}
                 collisionDetection={closestCenter}
@@ -234,7 +321,6 @@ function App() {
                     strategy={rectSortingStrategy}
                   >
                     {activeBots.map((bot) => {
-                      // 聚焦判断改为按 instanceId
                       const isFocused = focusedInstanceId === bot.instanceId;
                       const isHidden = focusedInstanceId && !isFocused;
 

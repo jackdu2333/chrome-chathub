@@ -6,7 +6,7 @@ export type UIThemeVariant = 'morandi' | 'bold';
 export type SendTargetMode = 'all' | 'focused' | 'selected';
 
 // 工作区布局模式
-export type WorkspaceLayoutMode = 'grid' | 'primary-secondary' | 'focus' | 'vertical';
+export type WorkspaceLayoutMode = 'grid' | 'primary-scroll' | 'focus' | 'vertical';
 
 
 
@@ -64,7 +64,9 @@ export interface UISlice {
     isInputCollapsed: boolean;
     // 工作区布局
     layoutMode: WorkspaceLayoutMode;
+    primaryInstanceId: string | null;
     setLayoutMode: (mode: WorkspaceLayoutMode) => void;
+    setPrimaryInstanceId: (id: string | null) => void;
     // 发送目标状态
     sendTargetMode: SendTargetMode;
     selectedTargetInstanceIds: string[];

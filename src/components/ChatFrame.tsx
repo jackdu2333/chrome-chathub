@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { RefreshCw, Maximize2, Minimize2, XCircle, GripVertical, Check, Stethoscope } from 'lucide-react';
+import { RefreshCw, Maximize2, Minimize2, XCircle, GripVertical, Check, Stethoscope, ArrowLeftToLine } from 'lucide-react';
 
 import { cn } from '../lib/utils';
 import { useStore } from '../store';
@@ -14,13 +14,14 @@ interface ChatFrameProps {
     isFocused: boolean;
     onToggleFocus: () => void;
     onRemove: () => void;
+    onSetPrimary?: () => void;
     className?: string;
     // New props for DnD
     dragListeners?: any; // Dnd-kit listeners (without attributes)
     isDragging?: boolean;
 }
 
-export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, className, dragListeners, isDragging }: ChatFrameProps) {
+export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, onSetPrimary, className, dragListeners, isDragging }: ChatFrameProps) {
     const [reloadKey, setReloadKey] = useState(0);
     const [showDiagnostics, setShowDiagnostics] = useState(false);
     const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -198,6 +199,15 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, className, 
                     )}
 
                     <div className="flex items-center gap-0">
+                        {onSetPrimary && (
+                            <button
+                                onClick={onSetPrimary}
+                                className="btn-icon scale-[0.92] text-slate-400 hover:text-[#bec8d5]"
+                                title="设为主窗口"
+                            >
+                                <ArrowLeftToLine className="w-4 h-4" />
+                            </button>
+                        )}
                         <button
                             onClick={handleReload}
                             className="btn-icon scale-[0.92]"

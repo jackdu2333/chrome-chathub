@@ -96,3 +96,54 @@ describe('SendResultSummary', () => {
     expect(s.failedCount).toBe(2);
   });
 });
+
+// v1.1: primary-scroll 布局的纯函数测试
+import { resolvePrimaryBot, resolveSecondaryBots } from '../resolveTargets';
+import type { ChatBot } from '../../types';
+
+const mockBot = (id: string): ChatBot =>
+  ({ id, name: id, url: `https://${id}.com`, inputSelector: 'textarea', submitSelector: 'button', isActive: true, instanceId: `inst-${id}` }) as ChatBot;
+
+describe('resolvePrimaryBot', () => {
+  it('primaryInstanceId 有效时返回对应 bot', () => {
+    const bots = [mockBot('a'), mockBot('b'), mockBot('c')];
+    expect(resolvePrimaryBot(bots, 'inst-b')?.id).toBe('b');
+  });
+
+  it('primaryInstanceId 无效时回退到 activeBots[0]', () => {
+    const bots = [mockBot('a'), mockBot('b')];
+    expect(resolvePrimaryBot(bots, 'inst-zzz')?.id).toBe('a');
+  });
+
+  it('primaryInstanceId 为 null 时返回 activeBots[0]', () => {
+    const bots = [mockBot('a'), mockBot('b')];
+    expect(resolvePrimaryBot(bots, null)?.id).toBe('a');
+  });
+
+  it('activeBots 为空时返回 null', () => {
+    expect(resolvePrimaryBot([], null)).toBe(null);
+  });
+});
+
+describe('resolveSecondaryBots', () => {
+  it('排除主窗口，返回其余 bot', () => {
+    const bots = [mockBot('a'), mockBot('b'), mockBot('c')];
+    const secondary = resolveSecondaryBots(bots, 'inst-a');
+    expect(secondary.map(b => b.id)).toEqual(['b', 'c']);
+  });
+
+  it('主窗口在中间时正确排除', () => {
+    const bots = [mockBot('a'), mockBot('b'), mockBot('c')];
+    const secondary = resolveSecondaryBots(bots, 'inst-b');
+    expect(secondary.map(b => b.id)).toEqual(['a', 'c']);
+  });
+
+  it('只有主窗口时返回空数组', () => {
+    const bots = [mockBot('a')];
+    expect(resolveSecondaryBots(bots, 'inst-a')).toEqual([]);
+  });
+
+  it('activeBots 为空时返回空数组', () => {
+    expect(resolveSecondaryBots([], null)).toEqual([]);
+  });
+});

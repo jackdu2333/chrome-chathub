@@ -8,6 +8,7 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set) => (
 
     // 工作区布局（默认 grid），启动时从 loadUIState 恢复
     layoutMode: 'grid',
+    primaryInstanceId: null,
 
     // 发送目标默认发给全部窗口
     sendTargetMode: 'all',
@@ -20,6 +21,7 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set) => (
         set({ layoutMode: mode });
         chrome.storage.local.set({ layoutMode: mode });
     },
+    setPrimaryInstanceId: (id) => set({ primaryInstanceId: id }),
     setSendTargetMode: (mode) => {
         set({ sendTargetMode: mode });
         chrome.storage.local.set({ sendTargetMode: mode });
@@ -41,7 +43,7 @@ export async function loadUIState() {
     try {
         const result = await chrome.storage.local.get(['layoutMode', 'sendTargetMode']);
         const updates: Partial<UISlice> = {};
-        if (result.layoutMode === 'grid' || result.layoutMode === 'primary-secondary'
+        if (result.layoutMode === 'grid' || result.layoutMode === 'primary-scroll'
             || result.layoutMode === 'focus' || result.layoutMode === 'vertical') {
             updates.layoutMode = result.layoutMode;
         }

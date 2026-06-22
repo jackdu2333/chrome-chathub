@@ -41,3 +41,31 @@ export function isInstanceIdStale(
   if (!instanceId) return false;
   return !validIds.includes(instanceId);
 }
+
+// v1.1: 主次横滑布局 — 主窗口/副窗口解析纯函数
+import type { ChatBot } from '../types';
+
+/**
+ * 纯函数：解析当前主窗口。
+ * 如果 primaryInstanceId 有效则用它，否则回退到 activeBots[0]。
+ */
+export function resolvePrimaryBot(
+  activeBots: ChatBot[],
+  primaryInstanceId: string | null,
+): ChatBot | null {
+  if (activeBots.length === 0) return null;
+  const matched = activeBots.find(bot => bot.instanceId === primaryInstanceId);
+  return matched ?? activeBots[0];
+}
+
+/**
+ * 纯函数：解析副窗口列表（排除主窗口）。
+ */
+export function resolveSecondaryBots(
+  activeBots: ChatBot[],
+  primaryInstanceId: string | null,
+): ChatBot[] {
+  const primary = resolvePrimaryBot(activeBots, primaryInstanceId);
+  if (!primary) return [];
+  return activeBots.filter(bot => bot.instanceId !== primary.instanceId);
+}
