@@ -1,6 +1,6 @@
 {
   "name": "chrome-chathub",
-  "version": "3.9.0",
+  "version": "3.10.0",
   "description": "A Chrome extension for chatting with multiple AI services simultaneously in a single interface",
   "private": false,
   "type": "module",
