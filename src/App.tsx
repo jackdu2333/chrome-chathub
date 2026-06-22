@@ -215,7 +215,7 @@ function App() {
           <div
             className={cn(
               "flex-1 min-h-0 overflow-hidden transition-all duration-300",
-              isInputCollapsed ? "pb-[12px]" : "pb-[76px]"
+              isInputCollapsed ? "pb-[4px]" : "pb-[60px]"
             )}
           >
             {activeBots.length === 0 ? (
