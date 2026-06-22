@@ -1,4 +1,4 @@
-# JackDu ChatHub
+# Chrome ChatHub
 
 > 手动选择模型的多 AI 对比工作台。用户自己选模型、选发送范围、观察对比。工具不替用户做决定。
 
@@ -105,5 +105,5 @@ AI 服务网站
 
 ## Repository
 
-- **远程**: `git@github.com:jackdu2333/chathub.git`
-- **版本**: 3.8.0
+- **远程**: `git@github.com:jackdu2333/chrome-chathub.git`
+- **版本**: 3.9.0

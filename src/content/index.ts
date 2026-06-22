@@ -494,10 +494,10 @@ function showNotification(message: string, type: 'success' | 'warning' | 'error'
     }
 
     const toast = document.createElement('div');
-    toast.className = `jackdu-chathub-toast jackdu-chathub-toast-${type}`;
+    toast.className = `chrome-chathub-toast chrome-chathub-toast-${type}`;
     toast.textContent = message;
 
-    const bar = document.getElementById('jackdu-chathub-bar');
+    const bar = document.getElementById('chrome-chathub-bar');
     if (bar && bar.parentNode) {
         bar.parentNode.insertBefore(toast, bar);
     } else {
@@ -506,12 +506,12 @@ function showNotification(message: string, type: 'success' | 'warning' | 'error'
     activeToast = toast;
 
     requestAnimationFrame(() => {
-        toast.classList.add('jackdu-chathub-toast-visible');
+        toast.classList.add('chrome-chathub-toast-visible');
     });
 
     setTimeout(() => {
-        toast.classList.remove('jackdu-chathub-toast-visible');
-        toast.classList.add('jackdu-chathub-toast-hide');
+        toast.classList.remove('chrome-chathub-toast-visible');
+        toast.classList.add('chrome-chathub-toast-hide');
         setTimeout(() => {
             if (toast.parentNode) {
                 toast.parentNode.removeChild(toast);

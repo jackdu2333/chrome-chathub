@@ -1,6 +1,6 @@
 {
     "manifest_version": 3,
-    "name": "JackDu ChatHub",
+    "name": "Chrome ChatHub",
     "version": "3.9.0",
     "description": "A centralized hub for multiple AI chat services. Expert Reviewed.",
     "permissions": [
