@@ -126,3 +126,55 @@ export function isContentToHubMessage(value: unknown): value is ContentToHubMess
     ].includes(candidate.type ?? '')
   );
 }
+
+// ============================================
+// v1.2: 窗口加载阶段状态机
+// ============================================
+
+export type FrameLoadPhase =
+  | 'iframe-loading'
+  | 'iframe-loaded'
+  | 'content-waiting'
+  | 'content-connected'
+  | 'adapter-matching'
+  | 'adapter-matched'
+  | 'dom-checking'
+  | 'interactive-ready'
+  | 'login-required'
+  | 'permission-missing'
+  | 'content-timeout'
+  | 'adapter-not-found'
+  | 'selector-error'
+  | 'unsupported'
+  | 'failed';
+
+export const FRAME_LOAD_PHASE_LABELS: Record<FrameLoadPhase, string> = {
+  'iframe-loading': '页面加载中',
+  'iframe-loaded': '页面已加载',
+  'content-waiting': '脚本连接中',
+  'content-connected': '脚本已连接',
+  'adapter-matching': '识别平台中',
+  'adapter-matched': '平台已识别',
+  'dom-checking': '检测输入框',
+  'interactive-ready': '已就绪',
+  'login-required': '需登录',
+  'permission-missing': '缺少站点权限',
+  'content-timeout': '脚本连接超时',
+  'adapter-not-found': '未匹配平台',
+  'selector-error': '选择器失效',
+  'unsupported': '暂不支持',
+  'failed': '加载失败',
+};
+
+// 健康检查结果
+export interface FrameHealthCheck {
+  iframeLoaded: boolean;
+  contentConnected: boolean;
+  adapterMatched: boolean;
+  readySelectorFound?: boolean;
+  inputSelectorFound?: boolean;
+  submitSelectorFound?: boolean;
+  loginRequired?: boolean;
+  permissionMissing?: boolean;
+  lastCheckedAt?: number;
+}

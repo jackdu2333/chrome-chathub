@@ -8,6 +8,7 @@ import { registerFrame, unregisterFrame } from '../runtime/frameRegistry';
 import { AdapterDiagnostics } from './AdapterDiagnostics';
 import { requestFrameHello } from '../runtime/frameBridge';
 import { useFrameSessionStore } from '../runtime/useFrameSessionStore';
+import { FRAME_LOAD_PHASE_LABELS } from '../runtime/protocol';
 
 interface ChatFrameProps {
     bot: ChatBot;
@@ -35,6 +36,7 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, onSetPrimar
 
     const ensureSession = useFrameSessionStore(state => state.ensureSession);
     const markBooting = useFrameSessionStore(state => state.markBooting);
+    const markLoadPhase = useFrameSessionStore(state => state.markLoadPhase);
     const markIframeLoaded = useFrameSessionStore(state => state.markIframeLoaded);
     const updateRuntimeStatus = useFrameSessionStore(state => state.updateRuntimeStatus);
     const session = useFrameSessionStore(state => state.sessions[bot.instanceId]);
@@ -105,17 +107,14 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, onSetPrimar
 
     const statusTone = session?.status ?? 'booting';
     const isGeminiLoginRequired = session?.lastError === 'GEMINI_EMBED_LOGIN_REQUIRED';
-    const statusLabel = session?.lastError === 'GEMINI_EMBED_LOGIN_REQUIRED'
-        ? '需登录'
+    // v1.2: 用 loadPhase 显示更精细的状态（ready/busy 时显示交互状态）
+    const statusLabel = statusTone === 'busy'
+        ? '发送中'
         : statusTone === 'ready'
-        ? '已就绪'
-        : statusTone === 'busy'
-            ? '发送中'
-            : statusTone === 'error'
-                ? '异常'
-                : statusTone === 'unsupported'
-                    ? '不支持'
-                    : '准备中';
+            ? '已就绪'
+            : session?.loadPhase
+                ? FRAME_LOAD_PHASE_LABELS[session.loadPhase]
+                : '准备中';
     const statusClassName = isGeminiLoginRequired
         ? 'bg-[#d6c6a9] ring-[3px] ring-[rgba(214,198,169,0.12)]'
         : statusTone === 'ready'
@@ -253,6 +252,7 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, onSetPrimar
                         style={{ colorScheme: isDarkMode ? 'dark' : 'light' }}
                         onLoad={() => {
                             markIframeLoaded(bot.instanceId);
+                            markLoadPhase(bot.instanceId, 'content-waiting');
                             const latest = useFrameSessionStore.getState().sessions[bot.instanceId];
                             if (!latest || latest.status !== 'ready') {
                                 markBooting(bot.instanceId);

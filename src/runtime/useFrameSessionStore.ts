@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { DriverCapabilities, FrameStatus } from './protocol';
+import { DriverCapabilities, FrameStatus, FrameLoadPhase, FrameHealthCheck } from './protocol';
 
 export interface FrameSession {
   instanceId: string;
@@ -7,6 +7,9 @@ export interface FrameSession {
   botName: string;
   url: string;
   status: FrameStatus;
+  loadPhase: FrameLoadPhase;
+  health: FrameHealthCheck;
+  retryCount: number;
   capabilities: DriverCapabilities;
   iframeLoadedAt?: number;
   lastHandshakeAt?: number;
@@ -21,6 +24,12 @@ const defaultCapabilities: DriverCapabilities = {
   text: true,
   submit: true,
   files: false,
+};
+
+const defaultHealth: FrameHealthCheck = {
+  iframeLoaded: false,
+  contentConnected: false,
+  adapterMatched: false,
 };
 
 interface FrameSessionState {
@@ -42,6 +51,9 @@ interface FrameSessionState {
       timestamp: number;
     }
   ) => void;
+  markLoadPhase: (instanceId: string, phase: FrameLoadPhase) => void;
+  markHealthCheck: (instanceId: string, check: Partial<FrameHealthCheck>) => void;
+  incrementRetry: (instanceId: string) => void;
   markCommandAck: (instanceId: string, commandId: string, detail?: string) => void;
   markCommandResult: (
     instanceId: string,
@@ -72,6 +84,9 @@ export const useFrameSessionStore = create<FrameSessionState>((set) => ({
           botName,
           url,
           status: state.sessions[instanceId]?.status ?? 'booting',
+          loadPhase: state.sessions[instanceId]?.loadPhase ?? 'iframe-loading',
+          health: state.sessions[instanceId]?.health ?? defaultHealth,
+          retryCount: state.sessions[instanceId]?.retryCount ?? 0,
           capabilities: state.sessions[instanceId]?.capabilities ?? defaultCapabilities,
           iframeLoadedAt: state.sessions[instanceId]?.iframeLoadedAt,
           lastHandshakeAt: state.sessions[instanceId]?.lastHandshakeAt,
@@ -123,6 +138,8 @@ export const useFrameSessionStore = create<FrameSessionState>((set) => ({
           [instanceId]: {
             ...session,
             iframeLoadedAt: Date.now(),
+            loadPhase: 'iframe-loaded',
+            health: { ...session.health, iframeLoaded: true },
           },
         },
       };
@@ -144,11 +161,56 @@ export const useFrameSessionStore = create<FrameSessionState>((set) => ({
             botName: payload.botName ?? existing.botName,
             url: payload.url ?? existing.url,
             status: payload.status,
+            loadPhase: payload.status === 'ready' ? 'interactive-ready'
+              : payload.status === 'error' ? 'failed'
+              : payload.status === 'unsupported' ? 'unsupported'
+              : payload.reason === 'GEMINI_EMBED_LOGIN_REQUIRED' ? 'login-required'
+              : existing.loadPhase,
             capabilities: payload.capabilities ?? existing.capabilities,
             lastHandshakeAt: payload.timestamp,
             lastError: payload.reason,
             lastDetail: payload.detail ?? existing.lastDetail,
+            health: { ...existing.health, contentConnected: true, adapterMatched: !!payload.adapterId },
           },
+        },
+      };
+    }),
+
+  markLoadPhase: (instanceId, phase) =>
+    set((state) => {
+      const session = ensureExistingSession(state.sessions, instanceId);
+      if (!session) return state;
+      return {
+        sessions: {
+          ...state.sessions,
+          [instanceId]: { ...session, loadPhase: phase },
+        },
+      };
+    }),
+
+  markHealthCheck: (instanceId, check) =>
+    set((state) => {
+      const session = ensureExistingSession(state.sessions, instanceId);
+      if (!session) return state;
+      return {
+        sessions: {
+          ...state.sessions,
+          [instanceId]: {
+            ...session,
+            health: { ...session.health, ...check, lastCheckedAt: Date.now() },
+          },
+        },
+      };
+    }),
+
+  incrementRetry: (instanceId) =>
+    set((state) => {
+      const session = ensureExistingSession(state.sessions, instanceId);
+      if (!session) return state;
+      return {
+        sessions: {
+          ...state.sessions,
+          [instanceId]: { ...session, retryCount: session.retryCount + 1 },
         },
       };
     }),

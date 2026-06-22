@@ -2,6 +2,7 @@ import { Stethoscope, X, CheckCircle2, XCircle, AlertTriangle, Loader2 } from 'l
 import { cn } from '../lib/utils';
 import type { ChatBot } from '../types';
 import { useFrameSessionStore } from '../runtime/useFrameSessionStore';
+import { FRAME_LOAD_PHASE_LABELS } from '../runtime/protocol';
 
 interface AdapterDiagnosticsProps {
     bot: ChatBot;
@@ -86,6 +87,35 @@ export function AdapterDiagnostics({ bot, isOpen, onClose }: AdapterDiagnosticsP
                             {statusConfig.label}
                         </div>
                     </div>
+
+                    {/* 加载阶段 */}
+                    <div className="border-t border-white/[0.06] pt-2.5">
+                        <span className="text-[12px] text-slate-500">加载阶段</span>
+                        <div className="mt-1.5 text-[13px] text-slate-300">
+                            {session?.loadPhase ? FRAME_LOAD_PHASE_LABELS[session.loadPhase] : '未知'}
+                        </div>
+                    </div>
+
+                    {/* 健康检查 */}
+                    {session?.health && (
+                        <div className="border-t border-white/[0.06] pt-2.5">
+                            <span className="text-[12px] text-slate-500">健康检查</span>
+                            <div className="mt-1.5 space-y-1">
+                                <HealthRow label="iframe 加载" ok={session.health.iframeLoaded} />
+                                <HealthRow label="脚本连接" ok={session.health.contentConnected} />
+                                <HealthRow label="平台识别" ok={session.health.adapterMatched} />
+                                {session.health.readySelectorFound !== undefined && (
+                                    <HealthRow label="Ready 选择器" ok={session.health.readySelectorFound} />
+                                )}
+                                {session.health.inputSelectorFound !== undefined && (
+                                    <HealthRow label="输入框选择器" ok={session.health.inputSelectorFound} />
+                                )}
+                                {session.health.submitSelectorFound !== undefined && (
+                                    <HealthRow label="发送按钮选择器" ok={session.health.submitSelectorFound} />
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     {/* 能力检测 */}
                     <div className="border-t border-white/[0.06] pt-2.5">
@@ -177,6 +207,20 @@ function SelectorRow({ label, value }: { label: string; value: string }) {
         <div className="flex items-start gap-2">
             <span className="shrink-0 text-[10px] text-slate-600">{label}</span>
             <code className="min-w-0 flex-1 truncate text-[10px] text-slate-500">{value}</code>
+        </div>
+    );
+}
+
+
+function HealthRow({ label, ok }: { label: string; ok?: boolean }) {
+    return (
+        <div className="flex items-center justify-between">
+            <span className="text-[11px] text-slate-500">{label}</span>
+            {ok ? (
+                <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+            ) : (
+                <XCircle className="h-3 w-3 text-slate-600" />
+            )}
         </div>
     );
 }
