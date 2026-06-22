@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
-import { RefreshCw, Maximize2, Minimize2, XCircle, GripVertical, Check, Stethoscope, ArrowLeftToLine } from 'lucide-react';
+import { RefreshCw, Maximize2, Minimize2, XCircle, GripVertical, Check, Stethoscope, ArrowLeftToLine, Wifi } from 'lucide-react';
 
 import { cn } from '../lib/utils';
 import { useStore } from '../store';
@@ -205,6 +205,18 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, onSetPrimar
                                 title="设为主窗口"
                             >
                                 <ArrowLeftToLine className="w-4 h-4" />
+                            </button>
+                        )}
+                        {(session?.loadPhase === 'content-timeout' || session?.loadPhase === 'failed') && (
+                            <button
+                                onClick={() => {
+                                    markLoadPhase(bot.instanceId, 'content-waiting');
+                                    requestFrameHello(bot.instanceId);
+                                }}
+                                className="btn-icon scale-[0.92] text-amber-400 hover:text-amber-300"
+                                title="重试连接（不刷新页面）"
+                            >
+                                <Wifi className="w-4 h-4" />
                             </button>
                         )}
                         <button

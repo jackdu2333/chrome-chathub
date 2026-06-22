@@ -39,17 +39,58 @@ function postToFrame(instanceId: string, message: HubToContentMessage) {
   frameWindow.postMessage(message, targetOrigin);
 }
 
+const FRAME_HELLO_RETRY_DELAYS = [0, 2000, 5000];
+const FRAME_HELLO_TIMEOUT = 8000;
+
+// v1.2: hello 自动重试 — 发送 hello 并在超时后自动重试
+const helloRetryTimers = new Map<string, ReturnType<typeof setTimeout>[]>();
+
 export function requestFrameHello(instanceId: string) {
-  try {
-    postToFrame(instanceId, {
-      source: HUB_MESSAGE_SOURCE,
-      type: 'FRAME_HELLO',
-      payload: {
-        timestamp: Date.now(),
-      },
-    });
-  } catch {
-    // Ignore. The iframe may still be booting or navigating.
+  // Clear any existing retry timers
+  const existing = helloRetryTimers.get(instanceId);
+  if (existing) {
+    existing.forEach(clearTimeout);
+  }
+
+  const timers: ReturnType<typeof setTimeout>[] = [];
+  const store = useFrameSessionStore.getState();
+
+  FRAME_HELLO_RETRY_DELAYS.forEach((delay, attempt) => {
+    const timer = setTimeout(() => {
+      try {
+        postToFrame(instanceId, {
+          source: HUB_MESSAGE_SOURCE,
+          type: 'FRAME_HELLO',
+          payload: { timestamp: Date.now() },
+        });
+        if (attempt > 0) {
+          store.incrementRetry(instanceId);
+        }
+      } catch {
+        // iframe may still be booting
+      }
+    }, delay);
+    timers.push(timer);
+  });
+
+  // Timeout: if still content-waiting after all retries, mark timeout
+  const timeoutTimer = setTimeout(() => {
+    const session = useFrameSessionStore.getState().sessions[instanceId];
+    if (session && session.loadPhase === 'content-waiting') {
+      useFrameSessionStore.getState().markLoadPhase(instanceId, 'content-timeout');
+    }
+  }, FRAME_HELLO_TIMEOUT);
+  timers.push(timeoutTimer);
+
+  helloRetryTimers.set(instanceId, timers);
+}
+
+// Clear retry timers when content script connects
+export function clearHelloRetry(instanceId: string) {
+  const timers = helloRetryTimers.get(instanceId);
+  if (timers) {
+    timers.forEach(clearTimeout);
+    helloRetryTimers.delete(instanceId);
   }
 }
 
@@ -149,6 +190,7 @@ export function handleContentMessageEvent(event: MessageEvent) {
   switch (message.type) {
     case 'FRAME_READY':
     case 'FRAME_STATUS':
+      clearHelloRetry(instanceId);
       store.updateRuntimeStatus(instanceId, {
         status: message.payload.status,
         adapterId: message.payload.adapterId,
