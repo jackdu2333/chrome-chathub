@@ -282,6 +282,30 @@ window.addEventListener('message', async (event) => {
                 handleExecuteCommand(event.data.payload);
                 return;
             }
+
+            if (event.data.type === 'PROBE_SELECTORS') {
+                await adapterReadyPromise;
+                if (!currentAdapter) {
+                    postToParent({
+                        source: CONTENT_MESSAGE_SOURCE,
+                        type: 'PROBE_RESULT',
+                        payload: { readyFound: false, inputFound: false, submitFound: false, timestamp: Date.now() },
+                    });
+                    return;
+                }
+                const readySel = getReadySelector(currentAdapter);
+                const readyFound = readySel ? !!(await waitForElement(readySel, { timeoutMs: 3000, visible: false }).catch(() => null)) : true;
+                const inputFound = !!(await waitForElement(currentAdapter.inputSelector, { timeoutMs: 3000, visible: false }).catch(() => null));
+                const submitFound = currentAdapter.submitSelector
+                    ? !!(await waitForElement(currentAdapter.submitSelector, { timeoutMs: 3000, visible: false }).catch(() => null))
+                    : true;
+                postToParent({
+                    source: CONTENT_MESSAGE_SOURCE,
+                    type: 'PROBE_RESULT',
+                    payload: { readyFound, inputFound, submitFound, timestamp: Date.now() },
+                });
+                return;
+            }
         }
 
         if (!isLegacyHubMessage(event.data)) {

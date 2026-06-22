@@ -85,6 +85,53 @@ export function requestFrameHello(instanceId: string) {
   helloRetryTimers.set(instanceId, timers);
 }
 
+// v1.2: 发送 selector 探测命令
+export async function probeSelectors(instanceId: string, timeoutMs = 10000): Promise<{
+  readyFound: boolean;
+  inputFound: boolean;
+  submitFound: boolean;
+} | null> {
+  try {
+    const result = await new Promise<{ readyFound: boolean; inputFound: boolean; submitFound: boolean }>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        pendingProbes.delete(instanceId);
+        reject(new Error('PROBE_TIMEOUT'));
+      }, timeoutMs);
+
+      pendingProbes.set(instanceId, { resolve, reject, timer });
+
+      postToFrame(instanceId, {
+        source: HUB_MESSAGE_SOURCE,
+        type: 'PROBE_SELECTORS',
+        payload: { timestamp: Date.now() },
+      });
+    });
+
+    // Update health check in store
+    useFrameSessionStore.getState().markHealthCheck(instanceId, {
+      readySelectorFound: result.readyFound,
+      inputSelectorFound: result.inputFound,
+      submitSelectorFound: result.submitFound,
+    });
+
+    // If input not found, mark selector-error
+    if (!result.inputFound) {
+      useFrameSessionStore.getState().markLoadPhase(instanceId, 'selector-error');
+    }
+
+    return result;
+  } catch {
+    return null;
+  }
+}
+
+interface PendingProbe {
+  resolve: (result: { readyFound: boolean; inputFound: boolean; submitFound: boolean }) => void;
+  reject: (error: Error) => void;
+  timer: ReturnType<typeof setTimeout>;
+}
+const pendingProbes = new Map<string, PendingProbe>();
+
 // Clear retry timers when content script connects
 export function clearHelloRetry(instanceId: string) {
   const timers = helloRetryTimers.get(instanceId);
@@ -211,6 +258,19 @@ export function handleContentMessageEvent(event: MessageEvent) {
     case 'COMMAND_ERROR':
       settlePendingError(instanceId, message);
       return;
+    case 'PROBE_RESULT': {
+      const probe = pendingProbes.get(instanceId);
+      if (probe) {
+        clearTimeout(probe.timer);
+        pendingProbes.delete(instanceId);
+        probe.resolve({
+          readyFound: message.payload.readyFound,
+          inputFound: message.payload.inputFound,
+          submitFound: message.payload.submitFound,
+        });
+      }
+      return;
+    }
     default:
       return;
   }

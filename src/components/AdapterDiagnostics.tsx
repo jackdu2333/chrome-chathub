@@ -1,7 +1,9 @@
-import { Stethoscope, X, CheckCircle2, XCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { Stethoscope, X, CheckCircle2, XCircle, AlertTriangle, Loader2, Search } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { ChatBot } from '../types';
 import { useFrameSessionStore } from '../runtime/useFrameSessionStore';
+import { probeSelectors } from '../runtime/frameBridge';
 import { FRAME_LOAD_PHASE_LABELS } from '../runtime/protocol';
 
 interface AdapterDiagnosticsProps {
@@ -36,6 +38,13 @@ function translateError(error?: string): string {
 }
 
 export function AdapterDiagnostics({ bot, isOpen, onClose }: AdapterDiagnosticsProps) {
+    const [probing, setProbing] = useState(false);
+
+    const handleProbe = async () => {
+        setProbing(true);
+        await probeSelectors(bot.instanceId);
+        setProbing(false);
+    };
     const session = useFrameSessionStore(state => state.sessions[bot.instanceId]);
 
     if (!isOpen) return null;
@@ -160,6 +169,30 @@ export function AdapterDiagnostics({ bot, isOpen, onClose }: AdapterDiagnosticsP
                             <SelectorRow label="发送按钮" value={typeof bot.submitSelector === 'string' ? bot.submitSelector : JSON.stringify(bot.submitSelector).slice(0, 80)} />
                             <SelectorRow label="就绪检测" value={bot.readySelector ? (typeof bot.readySelector === 'string' ? bot.readySelector : JSON.stringify(bot.readySelector).slice(0, 80)) : '未设置'} />
                         </div>
+                    </div>
+
+                    {/* 探测按钮 */}
+                    <div className="border-t border-white/[0.06] pt-2.5">
+                        <button
+                            onClick={handleProbe}
+                            disabled={probing}
+                            className={cn(
+                                "w-full rounded-lg border py-2 text-[12px] font-medium transition-all",
+                                probing
+                                    ? "border-slate-700 text-slate-600 cursor-wait"
+                                    : "border-blue-500/20 bg-blue-950/30 text-blue-400/80 hover:bg-blue-950/50"
+                            )}
+                        >
+                            {probing ? (
+                                <span className="flex items-center justify-center gap-1.5">
+                                    <Loader2 className="h-3 w-3 animate-spin" /> 检测中...
+                                </span>
+                            ) : (
+                                <span className="flex items-center justify-center gap-1.5">
+                                    <Search className="h-3 w-3" /> 检测 Selector
+                                </span>
+                            )}
+                        </button>
                     </div>
 
                     {/* 握手时间 */}

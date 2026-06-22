@@ -35,7 +35,26 @@ export interface ExecuteCommandMessage {
   };
 }
 
-export type HubToContentMessage = FrameHelloMessage | ExecuteCommandMessage;
+export interface ProbeSelectorsMessage {
+  source: typeof HUB_MESSAGE_SOURCE;
+  type: 'PROBE_SELECTORS';
+  payload: {
+    timestamp: number;
+  };
+}
+
+export interface ProbeResultMessage {
+  source: typeof CONTENT_MESSAGE_SOURCE;
+  type: 'PROBE_RESULT';
+  payload: {
+    readyFound: boolean;
+    inputFound: boolean;
+    submitFound: boolean;
+    timestamp: number;
+  };
+}
+
+export type HubToContentMessage = FrameHelloMessage | ExecuteCommandMessage | ProbeSelectorsMessage;
 
 export interface FrameStatusMessage {
   source: typeof CONTENT_MESSAGE_SOURCE;
@@ -95,7 +114,8 @@ export type ContentToHubMessage =
   | FrameReadyMessage
   | CommandAckMessage
   | CommandResultMessage
-  | CommandErrorMessage;
+  | CommandErrorMessage
+  | ProbeResultMessage;
 
 export function isHubToContentMessage(value: unknown): value is HubToContentMessage {
   if (!value || typeof value !== 'object') {
@@ -105,7 +125,7 @@ export function isHubToContentMessage(value: unknown): value is HubToContentMess
   const candidate = value as { source?: string; type?: string };
   return (
     candidate.source === HUB_MESSAGE_SOURCE &&
-    (candidate.type === 'FRAME_HELLO' || candidate.type === 'EXECUTE_COMMAND')
+    (candidate.type === 'FRAME_HELLO' || candidate.type === 'EXECUTE_COMMAND' || candidate.type === 'PROBE_SELECTORS')
   );
 }
 
@@ -123,6 +143,7 @@ export function isContentToHubMessage(value: unknown): value is ContentToHubMess
       'COMMAND_ACK',
       'COMMAND_RESULT',
       'COMMAND_ERROR',
+      'PROBE_RESULT',
     ].includes(candidate.type ?? '')
   );
 }
