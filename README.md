@@ -41,6 +41,23 @@ ChatGPT / Gemini / Doubao (豆包) / Qianwen (千问) / YiYan (文心一言) / K
 | Testing | Vitest |
 | Extension | Chrome Extension Manifest V3 |
 
+## Download
+
+**Option 1: GitHub Release (recommended)**
+
+Download the latest `chrome-chathub-vX.X.X.zip` from [Releases](https://github.com/jackdu2333/chrome-chathub/releases), unzip, then load as unpacked extension.
+
+**Option 2: Build from source**
+
+See [Getting Started](#getting-started) below.
+
+### Load into Chrome
+
+1. Open `chrome://extensions/`
+2. Enable **Developer mode**
+3. Click **Load unpacked**
+4. Select the unzipped `dist` folder
+
 ## Getting Started
 
 ### Prerequisites
@@ -71,13 +88,6 @@ npm run build
 ```
 
 Output: `dist/` folder.
-
-### Load into Chrome
-
-1. Open `chrome://extensions/`
-2. Enable **Developer mode**
-3. Click **Load unpacked**
-4. Select the `dist` folder
 
 ### Test
 
