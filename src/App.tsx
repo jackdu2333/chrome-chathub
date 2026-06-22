@@ -108,6 +108,7 @@ function App() {
   // 清理失效的 focusedInstanceId
   useEffect(() => {
     if (focusedInstanceId && !activeBots.some(bot => bot.instanceId === focusedInstanceId)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setFocusedInstanceId(null);
     }
   }, [activeBots, focusedInstanceId]);

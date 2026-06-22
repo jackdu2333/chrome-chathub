@@ -246,7 +246,7 @@ export const createBotSlice: StateCreator<AppState, [], [], BotSlice> = (set, ge
 
     updateAdapterOrder: (id, newOrder) => {
         const state = get();
-        let prefs = [...state.adapterPreferences];
+        const prefs = [...state.adapterPreferences];
         const index = prefs.findIndex(p => p.id === id);
 
         if (index >= 0) {

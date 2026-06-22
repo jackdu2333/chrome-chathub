@@ -249,7 +249,7 @@ window.addEventListener('message', async (event) => {
         const isExtensionOrigin = event.origin === extensionOrigin;
 
         console.log('[ChatHub Content] 📩 Message received:', {
-            type: (event.data as any)?.type,
+            type: (event.data as Record<string, unknown>)?.type,
             source: event.source === window.parent ? 'parent' : 'other',
             origin: event.origin,
             isParentWindow,
