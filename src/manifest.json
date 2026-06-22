@@ -67,5 +67,28 @@
                 "https://chatglm.cn/*"
             ]
         }
+    ],
+    "content_scripts": [
+        {
+            "matches": [
+                "https://chatgpt.com/*",
+                "https://web.tabbitbrowser.com/*",
+                "https://claude.ai/*",
+                "https://gemini.google.com/*",
+                "https://copilot.microsoft.com/*",
+                "https://www.doubao.com/*",
+                "https://www.qianwen.com/*",
+                "https://yiyan.baidu.com/*",
+                "https://www.kimi.com/*",
+                "https://chat.deepseek.com/*",
+                "https://chatglm.cn/*"
+            ],
+            "js": [
+                "src/content/index.ts"
+            ],
+            "run_at": "document_idle",
+            "all_frames": true,
+            "match_about_blank": true
+        }
     ]
 }
