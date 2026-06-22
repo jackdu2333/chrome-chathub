@@ -33,6 +33,46 @@ async function getAllAdapters(): Promise<ServiceAdapter[]> {
   return [...DEFAULT_ADAPTERS, ...customAdapters];
 }
 
+// v1.2: 检测 Chrome 版本，< 101 使用 domains 代替 initiatorDomains
+const chromeVersion = parseInt(
+  (navigator.userAgent.toLowerCase().match(/chrome\/(\d+)/)?.[1]) ?? '0', 10
+);
+
+/**
+ * 构建 Sec-Fetch header 修改规则（解决 Storage Partitioning 导致的 iframe 登录态隔离）
+ * 参考 Simple Chat Hub 的方案：将 Sec-Fetch-Dest 改为 document，Sec-Fetch-Site 改为 same-origin
+ */
+function buildSecFetchRule(
+  initiatorHostnames: string[],
+  resourceTypes?: chrome.declarativeNetRequest.ResourceType[]
+): chrome.declarativeNetRequest.Rule {
+  const condition: Record<string, unknown> = { initiatorDomains: initiatorHostnames };
+  if (resourceTypes) {
+    condition.resourceTypes = resourceTypes;
+  }
+  // Chrome < 101 不支持 initiatorDomains，回退到 domains
+  if (chromeVersion !== 0 && chromeVersion < 101) {
+    condition.domains = condition.initiatorDomains;
+    delete condition.initiatorDomains;
+  }
+  return {
+    id: 0, // 调用方会重新分配 id
+    priority: 1,
+    action: {
+      type: chrome.declarativeNetRequest.RuleActionType.MODIFY_HEADERS,
+      requestHeaders: [
+        { header: 'Sec-Fetch-Dest', operation: chrome.declarativeNetRequest.HeaderOperation.SET, value: 'document' },
+        { header: 'Sec-Fetch-Site', operation: chrome.declarativeNetRequest.HeaderOperation.SET, value: 'same-origin' },
+      ],
+      responseHeaders: [
+        { header: 'X-Frame-Options', operation: chrome.declarativeNetRequest.HeaderOperation.REMOVE },
+        { header: 'Content-Security-Policy', operation: chrome.declarativeNetRequest.HeaderOperation.REMOVE },
+      ],
+    },
+    condition: condition as chrome.declarativeNetRequest.RuleCondition,
+  };
+}
+
 async function updateRules() {
   try {
     const adapters = await getAllAdapters();
@@ -40,24 +80,45 @@ async function updateRules() {
       new Set(adapters.map((adapter) => extractDomain(adapter.url)).filter(Boolean))
     );
 
-    const rules: chrome.declarativeNetRequest.Rule[] = domains.length
-      ? [{
-          id: 1,
-          priority: 1,
-          action: {
-            type: chrome.declarativeNetRequest.RuleActionType.MODIFY_HEADERS,
-            responseHeaders: [
-              { header: 'X-Frame-Options', operation: chrome.declarativeNetRequest.HeaderOperation.REMOVE },
-              { header: 'Content-Security-Policy', operation: chrome.declarativeNetRequest.HeaderOperation.REMOVE },
-              { header: 'Frame-Options', operation: chrome.declarativeNetRequest.HeaderOperation.REMOVE },
-            ],
-          },
-          condition: {
-            requestDomains: domains,
-            resourceTypes: [chrome.declarativeNetRequest.ResourceType.SUB_FRAME],
-          },
-        }]
-      : [];
+    const rules: chrome.declarativeNetRequest.Rule[] = [];
+
+    // 规则 1: 移除 iframe 嵌入限制（X-Frame-Options / CSP）
+    if (domains.length) {
+      rules.push({
+        id: 1,
+        priority: 1,
+        action: {
+          type: chrome.declarativeNetRequest.RuleActionType.MODIFY_HEADERS,
+          responseHeaders: [
+            { header: 'X-Frame-Options', operation: chrome.declarativeNetRequest.HeaderOperation.REMOVE },
+            { header: 'Content-Security-Policy', operation: chrome.declarativeNetRequest.HeaderOperation.REMOVE },
+            { header: 'Frame-Options', operation: chrome.declarativeNetRequest.HeaderOperation.REMOVE },
+          ],
+        },
+        condition: {
+          requestDomains: domains,
+          resourceTypes: [chrome.declarativeNetRequest.ResourceType.SUB_FRAME],
+        },
+      });
+    }
+
+    // v1.2: Sec-Fetch header 修改 — 解决 Storage Partitioning 导致的 cookie 分区
+    const extensionHostname = new URL(chrome.runtime.getURL('')).hostname;
+
+    // 规则 2: 扩展自身发起的请求（iframe 内的子资源请求）
+    const extRule = buildSecFetchRule([extensionHostname]);
+    extRule.id = 2;
+    rules.push(extRule);
+
+    // 规则 3: AI 平台域名的 sub_frame 请求
+    if (domains.length) {
+      const subFrameRule = buildSecFetchRule(
+        domains.map(d => d),
+        [chrome.declarativeNetRequest.ResourceType.SUB_FRAME]
+      );
+      subFrameRule.id = 3;
+      rules.push(subFrameRule);
+    }
 
     const existingRules = await chrome.declarativeNetRequest.getDynamicRules();
     await chrome.declarativeNetRequest.updateDynamicRules({
@@ -65,7 +126,7 @@ async function updateRules() {
       addRules: rules,
     });
 
-    console.log('[ChatHub] Dynamic rules refreshed for adapters:', domains);
+    console.log('[ChatHub] Dynamic rules refreshed for adapters:', domains, '| Sec-Fetch rules: enabled');
   } catch (error) {
     console.error('[ChatHub] Failed to refresh DNR rules:', error);
   }
