@@ -904,13 +904,10 @@ html:not(.dark) .placeholder\:text-slate-500::placeholder {
     }
   }
 
-  /* Focus: 第一个占满，其余缩为侧边卡片 */
+  /* Focus: 均等横排分割（2窗各半，3窗三等分，4窗四等分），观感整齐 */
   .chat-layout-focus {
-    grid-template-columns: minmax(0, 3fr) minmax(280px, 1fr);
-    grid-auto-rows: minmax(120px, 1fr);
-  }
-  .chat-layout-focus > .chat-grid-item:first-child {
-    grid-row: 1 / -1;
+    grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+    grid-auto-rows: minmax(0, 1fr);
   }
 
   /* Vertical: 纵向堆叠，适合窄屏或大量模型 */
