@@ -162,9 +162,9 @@ export const useFrameSessionStore = create<FrameSessionState>((set) => ({
             url: payload.url ?? existing.url,
             status: payload.status,
             loadPhase: payload.status === 'ready' ? 'interactive-ready'
+              : payload.reason === 'GEMINI_EMBED_LOGIN_REQUIRED' ? 'login-required'
               : payload.status === 'error' ? 'failed'
               : payload.status === 'unsupported' ? 'unsupported'
-              : payload.reason === 'GEMINI_EMBED_LOGIN_REQUIRED' ? 'login-required'
               : existing.loadPhase,
             capabilities: payload.capabilities ?? existing.capabilities,
             lastHandshakeAt: payload.timestamp,

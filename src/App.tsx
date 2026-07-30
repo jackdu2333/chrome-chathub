@@ -45,12 +45,7 @@ function App() {
     const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
     
     const updateTheme = () => {
-      let isDark = false;
-      if (themeMode === 'system') {
-        isDark = mediaQuery.matches;
-      } else {
-        isDark = themeMode === 'dark';
-      }
+      const isDark = themeMode === 'system' ? mediaQuery.matches : themeMode === 'dark';
       
       if (isDark) {
         root.classList.add('dark');

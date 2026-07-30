@@ -124,19 +124,21 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, onSetPrimar
                 return;
             }
 
-            const isGemini = bot.id === 'gemini';
+            if (bot.id === 'gemini') {
+                markLoadPhase(bot.instanceId, 'content-timeout');
+                return;
+            }
+
             updateRuntimeStatus(bot.instanceId, {
                 status: 'error',
                 timestamp: Date.now(),
-                reason: isGemini ? 'GEMINI_EMBED_LOGIN_REQUIRED' : 'FRAME_READY_TIMEOUT',
-                detail: isGemini
-                    ? '请先在普通标签页登录 Gemini。Google 登录可能阻止嵌入式窗口或第三方 Cookie。'
-                    : 'iframe 已加载，但页面未在预期时间内完成就绪握手。',
+                reason: 'FRAME_READY_TIMEOUT',
+                detail: 'iframe 已加载，但页面未在预期时间内完成就绪握手。',
             });
         }, timeoutMs);
 
         return () => window.clearTimeout(timer);
-    }, [bot.id, bot.instanceId, isDragPreview, session?.iframeLoadedAt, session?.status, updateRuntimeStatus]);
+    }, [bot.id, bot.instanceId, isDragPreview, markLoadPhase, session?.iframeLoadedAt, session?.status, updateRuntimeStatus]);
 
     const statusTone = session?.status ?? 'booting';
     const isGeminiLoginRequired = session?.lastError === 'GEMINI_EMBED_LOGIN_REQUIRED';
@@ -323,7 +325,7 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, onSetPrimar
                     <iframe
                         key={`${bot.instanceId}-${reloadKey}`}
                         ref={iframeRef}
-                        src={bot.url}
+                        src={bot.embedUrl ?? bot.url}
                         className="absolute inset-0 h-full w-full border-none bg-transparent"
                         allow="microphone; camera; clipboard-write; fullscreen"
                         title={bot.name}

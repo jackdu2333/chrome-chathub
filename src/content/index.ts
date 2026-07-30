@@ -146,7 +146,9 @@ async function waitForCurrentAdapterReady(forceRefresh = false) {
         }
 
         // 2. Timeout reached, emit error but continue slow polling in background
-        emitFrameStatus('error', 'READY_TIMEOUT', selectorDebug);
+        // Gemini 在嵌入环境中可能因重定向或第三方 Cookie 较慢，但后台探测仍会自愈。
+        // 保持可重试状态，避免把暂时未就绪误报成永久错误或未登录。
+        emitFrameStatus(currentAdapter.id === 'gemini' ? 'booting' : 'error', 'READY_TIMEOUT', selectorDebug);
         console.warn('[ChatHub Content] Ready probe timed out. Switching to slow polling in background.');
 
         while (true) {

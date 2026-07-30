@@ -101,21 +101,18 @@ describe('useFrameSessionStore — loadPhase reducer', () => {
     expect(session?.lastError).toBe('FRAME_READY_TIMEOUT');
   });
 
-  it('updateRuntimeStatus: status=error + GEMINI_EMBED_LOGIN_REQUIRED → phase=failed（error 优先于 reason）', () => {
-    // 当前 updateRuntimeStatus 逻辑：status=error 匹配后直接 failed，
-    // GEMINI_EMBED_LOGIN_REQUIRED 只在 status 非 ready/error/unsupported 时生效
+  it('updateRuntimeStatus: 明确的 Gemini 登录错误优先显示 login-required', () => {
     useFrameSessionStore.getState().updateRuntimeStatus(ID, {
       status: 'error',
       timestamp: Date.now(),
       reason: 'GEMINI_EMBED_LOGIN_REQUIRED',
     });
     const session = useFrameSessionStore.getState().sessions[ID];
-    expect(session?.loadPhase).toBe('failed');
+    expect(session?.loadPhase).toBe('login-required');
     expect(session?.lastError).toBe('GEMINI_EMBED_LOGIN_REQUIRED');
   });
 
   it('updateRuntimeStatus: status=busy + GEMINI_EMBED_LOGIN_REQUIRED → phase=login-required', () => {
-    // reason 判断只在 status 非 ready/error/unsupported 时生效
     useFrameSessionStore.getState().updateRuntimeStatus(ID, {
       status: 'busy',
       timestamp: Date.now(),
@@ -123,6 +120,19 @@ describe('useFrameSessionStore — loadPhase reducer', () => {
     });
     const session = useFrameSessionStore.getState().sessions[ID];
     expect(session?.loadPhase).toBe('login-required');
+  });
+
+  it('Gemini 可恢复的 READY_TIMEOUT 保持连接超时而不是加载失败', () => {
+    useFrameSessionStore.getState().markLoadPhase(ID, 'content-timeout');
+    useFrameSessionStore.getState().updateRuntimeStatus(ID, {
+      status: 'booting',
+      timestamp: Date.now(),
+      reason: 'READY_TIMEOUT',
+    });
+    const session = useFrameSessionStore.getState().sessions[ID];
+    expect(session?.status).toBe('booting');
+    expect(session?.loadPhase).toBe('content-timeout');
+    expect(session?.lastError).toBe('READY_TIMEOUT');
   });
 
   it('updateRuntimeStatus: status=unsupported → phase=unsupported', () => {

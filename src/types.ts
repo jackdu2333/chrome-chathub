@@ -45,6 +45,7 @@ export interface ServiceAdapter {
     id: string;
     name: string;
     url: string;
+    embedUrl?: string;
     icon?: string;
     userSelect?: boolean; // Prevent selection if needed
     permissions?: string[]; // permissions needed
@@ -145,6 +146,7 @@ export const DEFAULT_ADAPTERS: ServiceAdapter[] = [
         id: 'gemini',
         name: 'Gemini',
         url: 'https://gemini.google.com',
+        embedUrl: 'https://gemini.google.com/app',
         icon: 'Bot',
         readySelector: [
             'rich-textarea div[contenteditable="true"]',
