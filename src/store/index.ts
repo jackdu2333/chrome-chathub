@@ -5,6 +5,7 @@ import { createUISlice } from './slices/uiSlice';
 import { createSettingsSlice } from './slices/settingsSlice';
 import { createModelGroupSlice } from './slices/modelGroupSlice';
 import { loadUIState } from './slices/uiSlice';
+import { appStorageGet, appStorageRemove, appStorageSet } from '../lib/appStorage';
 
 export * from './types';
 
@@ -25,10 +26,10 @@ export const useStore = create<AppState>((...a) => ({
     await useStore.getState().loadModelGroups();
     await loadUIState();
     // Migration: prompt library 已移除，用 flag 确保只清理一次
-    const migrationResult = await chrome.storage.local.get(['_migration_prompts_removed']);
+    const migrationResult = await appStorageGet<{ _migration_prompts_removed?: boolean }>(['_migration_prompts_removed']);
     if (!migrationResult._migration_prompts_removed) {
-        await chrome.storage.local.remove(['prompts']);
-        await chrome.storage.local.set({ '_migration_prompts_removed': true });
+        await appStorageRemove(['prompts']);
+        await appStorageSet({ '_migration_prompts_removed': true });
     }
     // Then load active bots (needs adapters to be loaded)
     await useStore.getState().loadActiveBots();

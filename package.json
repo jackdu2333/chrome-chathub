@@ -28,9 +28,11 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "test": "vitest run",
+    "test": "npm run build && vitest run && node --test tests/*.test.mjs",
     "test:watch": "vitest",
-    "check": "npm run lint && npm run test && npm run build"
+    "test:p0": "npm run build && node --test tests/p0-regressions.test.mjs",
+    "package:extension": "npm run build && zip -qrFS chathub-extension.zip dist",
+    "check": "npm run lint && npm run test"
   },
   "dependencies": {
     "@dnd-kit/core": "^6.3.1",

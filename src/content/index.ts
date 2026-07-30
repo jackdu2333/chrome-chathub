@@ -11,6 +11,7 @@ import { resolveDriver } from './drivers';
 import {
     DriverExecutionError,
     type BotDriver,
+    type DriverExecutionContext,
     type DriverTraceEntry,
 } from './drivers/types';
 import {
@@ -19,6 +20,7 @@ import {
     sleep,
     waitForElement,
 } from './dom/actions';
+import { assertCommandNotExpired } from '../runtime/commandDeadline';
 
 console.log('[ChatHub Content] Script loaded for:', window.location.hostname);
 // 生产环境不打印用户 prompt 内容
@@ -349,6 +351,25 @@ function handleExecuteCommand(payload: ExecuteCommandMessage['payload']) {
     void handleExecuteCommandAsync(payload).catch(() => {});
 }
 
+async function waitForCommandReady(expiresAt: number) {
+    assertCommandNotExpired(expiresAt);
+    const remainingMs = expiresAt - Date.now();
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    try {
+        await Promise.race([
+            waitForCurrentAdapterReady(currentStatus !== 'ready'),
+            new Promise<never>((_, reject) => {
+                timeoutId = setTimeout(() => reject(new Error('COMMAND_EXPIRED')), remainingMs);
+            }),
+        ]);
+    } finally {
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+        }
+    }
+    assertCommandNotExpired(expiresAt);
+}
+
 async function handleExecuteCommandAsync(payload: ExecuteCommandMessage['payload']): Promise<void> {
     if (window !== window.parent) {
         postToParent({
@@ -364,19 +385,22 @@ async function handleExecuteCommandAsync(payload: ExecuteCommandMessage['payload
     return new Promise<void>((resolve, reject) => {
         void enqueueCommand(async () => {
             const trace: DriverTraceEntry[] = [];
-            const context = {
+            const context: DriverExecutionContext = {
                 trace: (entry: Omit<DriverTraceEntry, 'timestamp'>) => {
                     trace.push({
                         ...entry,
                         timestamp: Date.now(),
                     });
                 },
+                assertActive: () => assertCommandNotExpired(payload.expiresAt),
             };
 
             try {
+                context.assertActive();
                 emitFrameStatus('busy');
                 await adapterReadyPromise;
-                await waitForCurrentAdapterReady(currentStatus !== 'ready');
+                await waitForCommandReady(payload.expiresAt);
+                context.assertActive();
                 await handleUserMessage({
                     text: payload.text,
                     autoSubmit: payload.autoSubmit,
@@ -427,7 +451,7 @@ async function handleExecuteCommandAsync(payload: ExecuteCommandMessage['payload
 
 async function handleUserMessage(
     { text, autoSubmit, files }: UserMessagePayload,
-    context?: { trace: (entry: Omit<DriverTraceEntry, 'timestamp'>) => void }
+    context?: DriverExecutionContext
 ) {
     if (DEBUG) {
         console.log('[ChatHub Content] Processing message:', { textLength: text.length, autoSubmit, filesCount: files?.length });
@@ -449,7 +473,7 @@ async function handleUserMessage(
         text,
         autoSubmit,
         files,
-    }, context ?? { trace: () => {} });
+    }, context ?? { trace: () => {}, assertActive: () => {} });
 
     console.log('[ChatHub Content] ✅ Message handled successfully');
 }
@@ -522,4 +546,3 @@ function showNotification(message: string, type: 'success' | 'warning' | 'error'
         }, 300);
     }, 2000);
 }
-

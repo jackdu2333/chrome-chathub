@@ -94,23 +94,12 @@ export interface StorageData {
     activeBots?: ChatBot[];
     isSyncEnabled?: boolean;
     uiThemeVariant?: 'morandi' | 'bold';
+    themeMode?: 'light' | 'dark' | 'system';
     // Removed AdapterPreference as it's separate? No, keep it.
     adapterPreferences?: AdapterPreference[];
     activeBotIds?: string[]; // Actually stored key
 }
 export const DEFAULT_ADAPTERS: ServiceAdapter[] = [
-    {
-        id: 'chatgpt',
-        name: 'gpt',
-        url: 'https://web.tabbitbrowser.com/newtab',
-        icon: 'Bot',
-        inputSelector: '.ProseMirror, [data-placeholder="输入关键词搜索"]',
-        submitSelector: 'button[label="ChatSendButton"]'
-        ,
-        category: 'general',
-        tags: ['通用', '搜索'],
-        stabilityLevel: 'medium'
-    },
     {
         id: 'openai',
         name: 'OpenAI (ChatGPT)',

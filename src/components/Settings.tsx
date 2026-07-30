@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { X, Plus, Edit2, Trash2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import type { ServiceAdapter } from '../types';
@@ -20,6 +20,10 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
     const [inputSelector, setInputSelector] = useState('textarea, input[type="text"], [contenteditable="true"]');
     const [submitSelector, setSubmitSelector] = useState('button[type="submit"]');
     const [editingId, setEditingId] = useState<string | null>(null);
+    const [formError, setFormError] = useState<string | null>(null);
+    const closeButtonRef = useRef<HTMLButtonElement>(null);
+    const previousFocusRef = useRef<HTMLElement | null>(null);
+    const onCloseRef = useRef(onClose);
     const uiThemeVariant = useStore((state) => state.uiThemeVariant);
     const setUIThemeVariant = useStore((state) => state.setUIThemeVariant);
     const themeMode = useStore((state) => state.themeMode || 'system');
@@ -48,13 +52,66 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
 
     const handleSave = async () => {
         if (!name.trim() || !url.trim()) {
-            alert('名称和网址不能为空！');
+            setFormError('名称和网址不能为空。');
+            return;
+        }
+
+        let normalizedUrl: string;
+        let normalizedHostname: string;
+        try {
+            const parsedUrl = new URL(url.trim());
+            if (parsedUrl.protocol !== 'https:' && parsedUrl.protocol !== 'http:') {
+                setFormError('网址只支持 http 或 https。');
+                return;
+            }
+            normalizedUrl = parsedUrl.toString();
+            normalizedHostname = parsedUrl.hostname;
+        } catch {
+            setFormError('请输入完整有效的网址，例如 https://example.com。');
+            return;
+        }
+
+        const normalizedInputSelector = inputSelector.trim();
+        const normalizedSubmitSelector = submitSelector.trim();
+        if (!normalizedInputSelector) {
+            setFormError('输入框 Selector 不能为空。');
+            return;
+        }
+
+        try {
+            document.querySelector(normalizedInputSelector);
+            if (normalizedSubmitSelector) {
+                document.querySelector(normalizedSubmitSelector);
+            }
+        } catch {
+            setFormError('Selector 语法无效，请检查输入框和发送按钮配置。');
+            return;
+        }
+
+        const adapterId = editingId || name.trim().toLowerCase().replace(/\s+/g, '-');
+        if (!editingId && adapters.some((adapter) => adapter.id === adapterId)) {
+            setFormError('已存在同名服务，请更换服务名称。');
+            return;
+        }
+
+        const conflictingAdapter = adapters.find((adapter) => {
+            if (adapter.id === editingId) {
+                return false;
+            }
+            try {
+                return new URL(adapter.url).hostname === normalizedHostname;
+            } catch {
+                return false;
+            }
+        });
+        if (conflictingAdapter) {
+            setFormError(`该域名已由“${conflictingAdapter.name}”使用，不能重复添加。`);
             return;
         }
 
         // 自定义域名需要请求 host 权限，否则 content script 无法注入
         try {
-            const origin = new URL(url).origin + '/*';
+            const origin = new URL(normalizedUrl).origin + '/*';
             const hasPermission = await chrome.permissions.contains({ origins: [origin] });
             if (!hasPermission) {
                 const granted = await chrome.permissions.request({ origins: [origin] });
@@ -68,11 +125,11 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
         }
 
         const adapter: ServiceAdapter = {
-            id: editingId || name.toLowerCase().replace(/\s+/g, '-'),
-            name,
-            url,
-            inputSelector,
-            submitSelector,
+            id: adapterId,
+            name: name.trim(),
+            url: normalizedUrl,
+            inputSelector: normalizedInputSelector,
+            submitSelector: normalizedSubmitSelector,
             // 自定义 adapter 默认分类和标记
             category: 'custom',
             tags: ['自定义'],
@@ -89,6 +146,7 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
         }
 
         // Reset form
+        setFormError(null);
         resetForm();
     };
 
@@ -98,6 +156,7 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
         setUrl(adapter.url);
         setInputSelector(getSelectorInputValue(adapter.inputSelector));
         setSubmitSelector(getSelectorInputValue(adapter.submitSelector));
+        setFormError(null);
 
         // Scroll to form
         setTimeout(() => {
@@ -114,6 +173,7 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
 
     const handleCancelEdit = () => {
         setEditingId(null);
+        setFormError(null);
         resetForm();
     };
 
@@ -191,6 +251,35 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
         setSubmitSelector('button[type="submit"]');
     };
 
+    useEffect(() => {
+        onCloseRef.current = onClose;
+    }, [onClose]);
+
+    useEffect(() => {
+        if (!isOpen) {
+            const previousFocus = previousFocusRef.current;
+            const fallbackFocus = document.querySelector('[data-model-trigger]') as HTMLElement | null;
+            if (previousFocus?.isConnected && !previousFocus.closest('[inert]')) {
+                previousFocus.focus();
+            } else {
+                fallbackFocus?.focus();
+            }
+            previousFocusRef.current = null;
+            return;
+        }
+
+        previousFocusRef.current = document.activeElement as HTMLElement | null;
+        window.requestAnimationFrame(() => closeButtonRef.current?.focus());
+
+        const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                onCloseRef.current();
+            }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [isOpen]);
+
     if (!isOpen) return null;
 
     return (
@@ -209,15 +298,21 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
                 "fixed right-0 top-0 h-full w-[400px] max-w-full shadow-2xl z-[120] flex flex-col transition-transform duration-300 ease-[cubic-bezier(0.2,0,0,1)]",
                 "bg-mac-light/95 dark:bg-[#1e1e1e]/95 backdrop-blur-xl border-l border-black/5 dark:border-white/10",
                 isOpen ? "translate-x-0" : "translate-x-full"
-            )}>
+            )}
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="settings-title"
+            >
                 {/* Header */}
                 <div className="h-[52px] px-6 flex items-center justify-between border-b border-black/5 dark:border-white/5 flex-shrink-0">
-                    <h2 className="text-[17px] font-semibold text-mac-text-light dark:text-mac-text-dark">
+                    <h2 id="settings-title" className="text-[17px] font-semibold text-mac-text-light dark:text-mac-text-dark">
                         {editingId ? '编辑服务' : '设置'}
                     </h2>
                     <button
+                        ref={closeButtonRef}
                         onClick={onClose}
                         className="btn-icon rounded-full"
+                        aria-label="关闭设置"
                     >
                         <X className="w-5 h-5" />
                     </button>
@@ -358,7 +453,7 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
                                     'chatgpt.com', 'claude.ai', 'gemini.google.com',
                                     'copilot.microsoft.com', 'doubao.com', 'qianwen.com',
                                     'yiyan.baidu.com', 'kimi.com', 'deepseek.com',
-                                    'chatglm.cn', 'tabbitbrowser.com'
+                                    'chatglm.cn'
                                 ].map(domain => (
                                     <span key={domain} className="rounded-full border border-black/8 bg-white/40 px-2.5 py-1 text-[11px] text-gray-500 dark:border-white/10 dark:bg-white/5 dark:text-gray-400">
                                         {domain}
@@ -423,11 +518,12 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
                                                         {adapter.url}
                                                     </p>
                                                 </div>
-                                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
                                                     <button
                                                         onClick={() => handleEdit(adapter)}
                                                         className="btn-icon text-blue-600 dark:text-blue-400"
                                                         title="编辑"
+                                                        aria-label={`编辑 ${adapter.name}`}
                                                     >
                                                         <Edit2 className="w-4 h-4" />
                                                     </button>
@@ -435,6 +531,7 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
                                                         onClick={() => handleDelete(adapter.id, adapter.name)}
                                                         className="btn-icon text-red-600 dark:text-red-400 hover:bg-red-500/10 hover:text-red-600 dark:hover:bg-red-500/20"
                                                         title="删除"
+                                                        aria-label={`删除 ${adapter.name}`}
                                                     >
                                                         <Trash2 className="w-4 h-4" />
                                                     </button>
@@ -452,6 +549,12 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
                                 {editingId ? '编辑详情' : '添加新服务'}
                             </h3>
 
+                            {formError && (
+                                <div role="alert" className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-[13px] text-red-600 dark:text-red-200">
+                                    {formError}
+                                </div>
+                            )}
+
                             {/* Name Input */}
                             <div>
                                 <label className="block text-[13px] font-medium text-mac-text-light dark:text-gray-300 mb-1.5">
@@ -460,7 +563,10 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
                                 <input
                                     type="text"
                                     value={name}
-                                    onChange={(e) => setName(e.target.value)}
+                                    onChange={(e) => {
+                                        setName(e.target.value);
+                                        setFormError(null);
+                                    }}
                                     placeholder="e.g., Kimi, Perplexity"
                                     className="w-full px-3 py-2 bg-white/50 dark:bg-black/20 border border-black/10 dark:border-white/10 rounded-lg text-[15px] text-mac-text-light dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all"
                                 />
@@ -474,7 +580,10 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
                                 <input
                                     type="url"
                                     value={url}
-                                    onChange={(e) => setUrl(e.target.value)}
+                                    onChange={(e) => {
+                                        setUrl(e.target.value);
+                                        setFormError(null);
+                                    }}
                                     placeholder="https://example.com"
                                     className="w-full px-3 py-2 bg-white/50 dark:bg-black/20 border border-black/10 dark:border-white/10 rounded-lg text-[15px] text-mac-text-light dark:text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 outline-none transition-all mb-2"
                                 />
@@ -495,7 +604,10 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
                                     <input
                                         type="text"
                                         value={inputSelector}
-                                        onChange={(e) => setInputSelector(e.target.value)}
+                                        onChange={(e) => {
+                                            setInputSelector(e.target.value);
+                                            setFormError(null);
+                                        }}
                                         className="w-full px-3 py-2 bg-white/40 dark:bg-black/20 border border-black/5 dark:border-white/10 rounded-lg text-xs font-mono text-gray-600 dark:text-gray-300 focus:ring-1 focus:ring-blue-500 outline-none"
                                     />
                                 </div>
@@ -508,7 +620,10 @@ export function Settings({ isOpen, onClose, adapters, onAddAdapter, onRemoveAdap
                                     <input
                                         type="text"
                                         value={submitSelector}
-                                        onChange={(e) => setSubmitSelector(e.target.value)}
+                                        onChange={(e) => {
+                                            setSubmitSelector(e.target.value);
+                                            setFormError(null);
+                                        }}
                                         className="w-full px-3 py-2 bg-white/40 dark:bg-black/20 border border-black/5 dark:border-white/10 rounded-lg text-xs font-mono text-gray-600 dark:text-gray-300 focus:ring-1 focus:ring-blue-500 outline-none"
                                     />
                                 </div>

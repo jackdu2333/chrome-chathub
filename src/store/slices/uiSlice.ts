@@ -1,5 +1,6 @@
 import { StateCreator } from 'zustand';
 import { AppState, UISlice } from '../types';
+import { appStorageGet, appStorageSet } from '../../lib/appStorage';
 
 export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set) => ({
     gridLayout: 'split',
@@ -19,12 +20,14 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set) => (
     setInputCollapsed: (collapsed) => set({ isInputCollapsed: collapsed }),
     setLayoutMode: (mode) => {
         set({ layoutMode: mode });
-        chrome.storage.local.set({ layoutMode: mode });
+        void appStorageSet({ layoutMode: mode })
+            .catch((error) => console.error('[ChatHub] Failed to save layout mode:', error));
     },
     setPrimaryInstanceId: (id) => set({ primaryInstanceId: id }),
     setSendTargetMode: (mode) => {
         set({ sendTargetMode: mode });
-        chrome.storage.local.set({ sendTargetMode: mode });
+        void appStorageSet({ sendTargetMode: mode })
+            .catch((error) => console.error('[ChatHub] Failed to save send target mode:', error));
     },
     toggleSelectedTarget: (instanceId) =>
         set((state) => {
@@ -41,7 +44,10 @@ export const createUISlice: StateCreator<AppState, [], [], UISlice> = (set) => (
 // 启动时恢复持久化的 UI 状态
 export async function loadUIState() {
     try {
-        const result = await chrome.storage.local.get(['layoutMode', 'sendTargetMode']);
+        const result = await appStorageGet<{
+            layoutMode?: unknown;
+            sendTargetMode?: unknown;
+        }>(['layoutMode', 'sendTargetMode']);
         const updates: Partial<UISlice> = {};
         if (result.layoutMode === 'grid' || result.layoutMode === 'primary-scroll'
             || result.layoutMode === 'focus' || result.layoutMode === 'vertical') {

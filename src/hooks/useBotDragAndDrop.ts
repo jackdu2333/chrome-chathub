@@ -9,7 +9,7 @@ import {
 import {
     sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useStore } from '../store';
 
 export function useBotDragAndDrop() {
@@ -45,10 +45,22 @@ export function useBotDragAndDrop() {
         }
     };
 
+    const handleDragCancel = () => {
+        setActiveDragId(null);
+        document.body.classList.remove('is-dragging');
+    };
+
+    useEffect(() => {
+        return () => {
+            document.body.classList.remove('is-dragging');
+        };
+    }, []);
+
     return {
         sensors,
         activeDragId,
         handleDragStart,
-        handleDragEnd
+        handleDragEnd,
+        handleDragCancel,
     };
 }

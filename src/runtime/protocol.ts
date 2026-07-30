@@ -32,6 +32,7 @@ export interface ExecuteCommandMessage {
     autoSubmit: boolean;
     files?: UploadPayload[];
     timestamp: number;
+    expiresAt: number;
   };
 }
 

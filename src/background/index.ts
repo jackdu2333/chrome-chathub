@@ -1,4 +1,5 @@
 import { DEFAULT_ADAPTERS, type ServiceAdapter } from '../types';
+import contentScriptFile from '../content/index.ts?script';
 
 function extractDomain(url: string): string {
   try {
@@ -132,37 +133,8 @@ async function updateRules() {
   }
 }
 
-async function resolveContentScriptFiles() {
-  const runtimeManifest = chrome.runtime.getManifest();
-  const manifestDeclaredFiles = runtimeManifest.content_scripts?.flatMap((script) => script.js ?? []) ?? [];
-  if (manifestDeclaredFiles.length > 0) {
-    return manifestDeclaredFiles;
-  }
-
-  const response = await fetch(chrome.runtime.getURL('.vite/manifest.json'));
-  const manifest = await response.json() as Record<string, { file?: string; src?: string }>;
-
-  const loaderEntry = Object.entries(manifest).find(([key, value]) => {
-    return key.startsWith('_index.ts-loader') || value.file?.includes('index.ts-loader');
-  });
-
-  if (loaderEntry?.[1]?.file) {
-    return [loaderEntry[1].file];
-  }
-
-  const directEntry = manifest['src/content/index.ts']?.file;
-  if (directEntry) {
-    return [directEntry];
-  }
-
-  throw new Error('CONTENT_SCRIPT_FILE_NOT_FOUND');
-}
-
-const DEFAULT_DOMAIN_PATTERNS = new Set(
-  DEFAULT_ADAPTERS.map(a => toMatchPattern(a.url)).filter(Boolean) as string[]
-);
-
-const CUSTOM_SCRIPT_ID = 'chathub-custom-content';
+const CONTENT_SCRIPT_ID = 'chathub-main-content';
+const LEGACY_SCRIPT_IDS = new Set(['chathub-custom-content', 'chathub-dynamic-content']);
 
 async function updateContentScriptRegistrations() {
   try {
@@ -171,50 +143,49 @@ async function updateContentScriptRegistrations() {
       new Set(adapters.map((adapter) => toMatchPattern(adapter.url)).filter(Boolean))
     ) as string[];
 
-    // 只注册自定义域名（不在静态 manifest matches 中的）
-    const customMatches = allMatches.filter(m => !DEFAULT_DOMAIN_PATTERNS.has(m));
-
-    // 过滤掉未授权的自定义域名
-    const authorizedCustom: string[] = [];
-    for (const match of customMatches) {
+    // 内置域名由 host_permissions 授权，自定义域名由 optional_host_permissions 授权。
+    const authorizedMatches: string[] = [];
+    for (const match of allMatches) {
       try {
         const hasPermission = await chrome.permissions.contains({ origins: [match] });
         if (hasPermission) {
-          authorizedCustom.push(match);
+          authorizedMatches.push(match);
         } else {
           console.warn('[ChatHub] Skipping unauthorized custom match:', match);
         }
       } catch {
-        authorizedCustom.push(match);
+        authorizedMatches.push(match);
       }
     }
 
-    // 清理旧的自定义注册
+    // 清理新旧动态注册，避免升级后留下重复 content script。
     try {
       const existing = await chrome.scripting.getRegisteredContentScripts();
-      const customScripts = existing.filter(s => s.id === CUSTOM_SCRIPT_ID);
-      if (customScripts.length > 0) {
-        await chrome.scripting.unregisterContentScripts({ ids: [CUSTOM_SCRIPT_ID] });
+      const registeredIds = existing
+        .map((script) => script.id)
+        .filter((id) => id === CONTENT_SCRIPT_ID || LEGACY_SCRIPT_IDS.has(id));
+      if (registeredIds.length > 0) {
+        await chrome.scripting.unregisterContentScripts({ ids: registeredIds });
       }
     } catch {
       // ignore
     }
 
-    if (!authorizedCustom.length) {
-      console.log('[ChatHub] No custom domains to register dynamically');
+    if (!authorizedMatches.length) {
+      console.log('[ChatHub] No authorized domains to register dynamically');
       return;
     }
 
-    const js = await resolveContentScriptFiles();
     await chrome.scripting.registerContentScripts([{
-      id: CUSTOM_SCRIPT_ID,
-      matches: authorizedCustom,
-      js,
+      id: CONTENT_SCRIPT_ID,
+      matches: authorizedMatches,
+      js: [contentScriptFile],
       allFrames: true,
+      matchOriginAsFallback: true,
       runAt: 'document_idle',
     }]);
 
-    console.log('[ChatHub] Registered dynamic content script for custom domains:', authorizedCustom);
+    console.log('[ChatHub] Registered dynamic content script for matches:', authorizedMatches);
   } catch (error) {
     console.error('[ChatHub] Failed to register custom content scripts:', error);
   }

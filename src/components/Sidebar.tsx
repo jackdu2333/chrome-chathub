@@ -1,6 +1,6 @@
 import { Pin, PinOff, Settings as SettingsIcon, Sparkles, X, Search, Layers, Check, Trash2, Edit2 } from 'lucide-react';
 
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useStore } from '../store';
 import { ContextMenu, ContextMenuItem } from './ContextMenu';
 import { cn } from '../lib/utils';
@@ -39,6 +39,8 @@ export function Sidebar({
     const [groupName, setGroupName] = useState('');
     const [renamingGroupId, setRenamingGroupId] = useState<string | null>(null);
     const [renameValue, setRenameValue] = useState('');
+    const closeButtonRef = useRef<HTMLButtonElement>(null);
+    const previousFocusRef = useRef<HTMLElement | null>(null);
 
     const modelGroups = useStore(state => state.modelGroups);
     const saveModelGroup = useStore(state => state.saveModelGroup);
@@ -225,8 +227,21 @@ export function Sidebar({
     // 分类顺序
     const categoryOrder: AdapterCategory[] = ['general', 'chinese', 'coding', 'search', 'long-context', 'custom'];
 
+    useEffect(() => {
+        if (isOpen) {
+            previousFocusRef.current = document.activeElement as HTMLElement | null;
+            window.requestAnimationFrame(() => closeButtonRef.current?.focus());
+            return;
+        }
+
+        previousFocusRef.current?.focus();
+        previousFocusRef.current = null;
+    }, [isOpen]);
+
     return (
         <div
+            aria-hidden={!isOpen}
+            inert={!isOpen}
             className={cn(
                 "pointer-events-none fixed inset-x-0 top-0 bottom-[76px] z-50",
                 isOpen && "pointer-events-auto"
@@ -245,7 +260,11 @@ export function Sidebar({
             <div className={cn(
                 "sidebar-shell transition-transform duration-200 ease-[cubic-bezier(0.22,0.61,0.36,1)]",
                 isOpen ? "translate-x-0" : "-translate-x-[calc(100%+24px)]",
-            )}>
+            )}
+                role="dialog"
+                aria-modal="true"
+                aria-label="模型栏"
+            >
                 <div className="px-3 pb-3 pt-3">
                     <div className="sidebar-brand">
                         <div className="flex items-start justify-between gap-3">
@@ -264,9 +283,11 @@ export function Sidebar({
                             </div>
 
                             <button
+                                ref={closeButtonRef}
                                 onClick={onClose}
                                 className="btn-icon mt-0.5"
                                 title="关闭模型栏"
+                                aria-label="关闭模型栏"
                             >
                                 <X className="h-4 w-4" />
                             </button>

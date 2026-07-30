@@ -1,6 +1,7 @@
 import { StateCreator } from 'zustand';
 import { AppState, ModelGroupSlice, ModelGroup } from '../types';
 import { ChatBot } from '../../types';
+import { appStorageGet, appStorageSet } from '../../lib/appStorage';
 
 export const createModelGroupSlice: StateCreator<AppState, [], [], ModelGroupSlice> = (set, get) => ({
     modelGroups: [],
@@ -22,7 +23,8 @@ export const createModelGroupSlice: StateCreator<AppState, [], [], ModelGroupSli
 
         const newGroups = [...state.modelGroups, group];
         set({ modelGroups: newGroups });
-        chrome.storage.local.set({ modelGroups: newGroups });
+        void appStorageSet({ modelGroups: newGroups })
+            .catch((error) => console.error('[ChatHub] Failed to save model groups:', error));
     },
 
     applyModelGroup: (groupId, mode) => {
@@ -61,7 +63,8 @@ export const createModelGroupSlice: StateCreator<AppState, [], [], ModelGroupSli
         const state = get();
         const newGroups = state.modelGroups.filter(g => g.id !== groupId);
         set({ modelGroups: newGroups });
-        chrome.storage.local.set({ modelGroups: newGroups });
+        void appStorageSet({ modelGroups: newGroups })
+            .catch((error) => console.error('[ChatHub] Failed to save model groups:', error));
     },
 
     renameModelGroup: (groupId, name) => {
@@ -70,13 +73,14 @@ export const createModelGroupSlice: StateCreator<AppState, [], [], ModelGroupSli
             g.id === groupId ? { ...g, name, updatedAt: Date.now() } : g
         );
         set({ modelGroups: newGroups });
-        chrome.storage.local.set({ modelGroups: newGroups });
+        void appStorageSet({ modelGroups: newGroups })
+            .catch((error) => console.error('[ChatHub] Failed to save model groups:', error));
     },
 
     loadModelGroups: async () => {
         try {
-            const result = await chrome.storage.local.get(['modelGroups']);
-            const groups = (result as { modelGroups?: ModelGroup[] }).modelGroups || [];
+            const result = await appStorageGet<{ modelGroups?: ModelGroup[] }>(['modelGroups']);
+            const groups = result.modelGroups || [];
             set({ modelGroups: groups });
         } catch (error) {
             console.error('[ChatHub] Failed to load model groups:', error);

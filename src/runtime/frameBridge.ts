@@ -10,6 +10,7 @@ import {
 } from './protocol';
 import { findInstanceIdBySource, getFrameWindow, frameRegistry } from './frameRegistry';
 import { useFrameSessionStore } from './useFrameSessionStore';
+import { createCommandDeadline, DEFAULT_COMMAND_TIMEOUT_MS } from './commandDeadline';
 
 interface PendingCommand {
   instanceId: string;
@@ -19,6 +20,22 @@ interface PendingCommand {
 }
 
 const pendingCommands = new Map<string, PendingCommand>();
+
+export function cancelPendingCommandsForFrame(
+  instanceId: string,
+  reason = 'FRAME_NOT_AVAILABLE'
+) {
+  for (const [commandId, pending] of pendingCommands.entries()) {
+    if (pending.instanceId !== instanceId) {
+      continue;
+    }
+
+    clearTimeout(pending.timeoutId);
+    pendingCommands.delete(commandId);
+    useFrameSessionStore.getState().markCommandResult(instanceId, commandId, false, reason);
+    pending.reject(new Error(reason));
+  }
+}
 
 function postToFrame(instanceId: string, message: HubToContentMessage) {
   const frameWindow = getFrameWindow(instanceId);
@@ -148,8 +165,9 @@ export async function sendCommandToFrame(input: {
   files?: ExecuteCommandMessage['payload']['files'];
   timeoutMs?: number;
 }) {
-  const { instanceId, text, autoSubmit, files, timeoutMs = 20000 } = input;
+  const { instanceId, text, autoSubmit, files, timeoutMs = DEFAULT_COMMAND_TIMEOUT_MS } = input;
   const commandId = crypto.randomUUID();
+  const expiresAt = createCommandDeadline(timeoutMs);
 
   const result = await new Promise<CommandResultMessage['payload']>((resolve, reject) => {
     const timeoutId = setTimeout(() => {
@@ -165,17 +183,24 @@ export async function sendCommandToFrame(input: {
       timeoutId,
     });
 
-    postToFrame(instanceId, {
-      source: HUB_MESSAGE_SOURCE,
-      type: 'EXECUTE_COMMAND',
-      payload: {
-        commandId,
-        text,
-        autoSubmit,
-        files,
-        timestamp: Date.now(),
-      },
-    });
+    try {
+      postToFrame(instanceId, {
+        source: HUB_MESSAGE_SOURCE,
+        type: 'EXECUTE_COMMAND',
+        payload: {
+          commandId,
+          text,
+          autoSubmit,
+          files,
+          timestamp: Date.now(),
+          expiresAt,
+        },
+      });
+    } catch (error) {
+      clearTimeout(timeoutId);
+      pendingCommands.delete(commandId);
+      reject(error);
+    }
   });
 
   return {

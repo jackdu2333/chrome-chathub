@@ -1,4 +1,5 @@
 import { useEffect, useState, useRef } from 'react';
+import type { useSortable } from '@dnd-kit/sortable';
 import { RefreshCw, Maximize2, Minimize2, XCircle, GripVertical, Check, Stethoscope, ArrowLeftToLine, Wifi, Search, ExternalLink } from 'lucide-react';
 
 import { cn } from '../lib/utils';
@@ -6,7 +7,7 @@ import { useStore } from '../store';
 import type { ChatBot } from '../types';
 import { registerFrame, unregisterFrame } from '../runtime/frameRegistry';
 import { AdapterDiagnostics } from './AdapterDiagnostics';
-import { requestFrameHello, probeSelectors } from '../runtime/frameBridge';
+import { cancelPendingCommandsForFrame, requestFrameHello, probeSelectors } from '../runtime/frameBridge';
 import { useFrameSessionStore } from '../runtime/useFrameSessionStore';
 import { FRAME_LOAD_PHASE_LABELS, FrameLoadPhase } from '../runtime/protocol';
 
@@ -31,11 +32,12 @@ interface ChatFrameProps {
     onSetPrimary?: () => void;
     className?: string;
     // New props for DnD
-    dragListeners?: any; // Dnd-kit listeners (without attributes)
+    dragListeners?: ReturnType<typeof useSortable>['listeners'];
     isDragging?: boolean;
+    isDragPreview?: boolean;
 }
 
-export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, onSetPrimary, className, dragListeners, isDragging }: ChatFrameProps) {
+export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, onSetPrimary, className, dragListeners, isDragging, isDragPreview = false }: ChatFrameProps) {
     const [reloadKey, setReloadKey] = useState(0);
     const [showDiagnostics, setShowDiagnostics] = useState(false);
     const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -52,6 +54,7 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, onSetPrimar
     const markLoadPhase = useFrameSessionStore(state => state.markLoadPhase);
     const markIframeLoaded = useFrameSessionStore(state => state.markIframeLoaded);
     const updateRuntimeStatus = useFrameSessionStore(state => state.updateRuntimeStatus);
+    const removeSession = useFrameSessionStore(state => state.removeSession);
     const session = useFrameSessionStore(state => state.sessions[bot.instanceId]);
 
     const host = (() => {
@@ -70,15 +73,23 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, onSetPrimar
     };
 
     useEffect(() => {
+        if (isDragPreview) {
+            return;
+        }
+
         ensureSession({
             instanceId: bot.instanceId,
             adapterId: bot.id,
             botName: bot.name,
             url: bot.url,
         });
-    }, [bot.id, bot.instanceId, bot.name, bot.url, ensureSession]);
+    }, [bot.id, bot.instanceId, bot.name, bot.url, ensureSession, isDragPreview]);
 
     useEffect(() => {
+        if (isDragPreview) {
+            return;
+        }
+
         const iframe = iframeRef.current;
         if (!iframe) {
             return;
@@ -89,11 +100,20 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, onSetPrimar
 
         return () => {
             unregisterFrame(bot.instanceId);
+            cancelPendingCommandsForFrame(bot.instanceId, 'FRAME_RELOADED');
         };
-    }, [bot.instanceId, reloadKey]);
+    }, [bot.instanceId, isDragPreview, reloadKey]);
 
     useEffect(() => {
-        if (!session?.iframeLoadedAt || session.status !== 'booting') {
+        if (isDragPreview) {
+            return;
+        }
+
+        return () => removeSession(bot.instanceId);
+    }, [bot.instanceId, isDragPreview, removeSession]);
+
+    useEffect(() => {
+        if (isDragPreview || !session?.iframeLoadedAt || session.status !== 'booting') {
             return;
         }
 
@@ -116,7 +136,7 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, onSetPrimar
         }, timeoutMs);
 
         return () => window.clearTimeout(timer);
-    }, [bot.id, bot.instanceId, session?.iframeLoadedAt, session?.status, updateRuntimeStatus]);
+    }, [bot.id, bot.instanceId, isDragPreview, session?.iframeLoadedAt, session?.status, updateRuntimeStatus]);
 
     const statusTone = session?.status ?? 'booting';
     const isGeminiLoginRequired = session?.lastError === 'GEMINI_EMBED_LOGIN_REQUIRED';
@@ -251,6 +271,7 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, onSetPrimar
                             onClick={handleReload}
                             className="btn-icon scale-[0.92]"
                             title="重新加载"
+                            aria-label={`重新加载 ${bot.name}`}
                         >
                             <RefreshCw className="w-4 h-4" />
                         </button>
@@ -259,6 +280,7 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, onSetPrimar
                             onClick={() => setShowDiagnostics(true)}
                             className="btn-icon scale-[0.92]"
                             title="诊断"
+                            aria-label={`诊断 ${bot.name}`}
                         >
                             <Stethoscope className="w-4 h-4" />
                         </button>
@@ -267,6 +289,7 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, onSetPrimar
                             onClick={() => { window.open(bot.url, '_blank'); }}
                             className="btn-icon scale-[0.92]"
                             title="在新标签页打开（解决登录态问题）"
+                            aria-label={`在新标签页打开 ${bot.name}`}
                         >
                             <ExternalLink className="w-4 h-4" />
                         </button>
@@ -275,6 +298,7 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, onSetPrimar
                             onClick={onToggleFocus}
                             className="btn-icon scale-[0.92]"
                             title={isFocused ? "最小化" : "最大化"}
+                            aria-label={isFocused ? `退出 ${bot.name} 聚焦模式` : `聚焦 ${bot.name}`}
                         >
                             {isFocused ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
                         </button>
@@ -283,6 +307,7 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, onSetPrimar
                             onClick={onRemove}
                             className="btn-icon scale-[0.92] text-slate-400 hover:bg-[#cfaeae]/[0.12] hover:text-[#f1dede]"
                             title="关闭窗口"
+                            aria-label={`关闭 ${bot.name} 窗口`}
                         >
                             <XCircle className="w-4 h-4" />
                         </button>
@@ -290,6 +315,11 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, onSetPrimar
                 </div>
 
                 <div className="relative flex-1 min-h-0 bg-transparent">
+                    {isDragPreview ? (
+                        <div className="absolute inset-0 flex items-center justify-center bg-black/10 text-sm text-slate-400">
+                            拖动以调整窗口顺序
+                        </div>
+                    ) : (
                     <iframe
                         key={`${bot.instanceId}-${reloadKey}`}
                         ref={iframeRef}
@@ -308,6 +338,7 @@ export function ChatFrame({ bot, isFocused, onToggleFocus, onRemove, onSetPrimar
                             requestFrameHello(bot.instanceId);
                         }}
                     />
+                    )}
                 </div>
             </div>
 

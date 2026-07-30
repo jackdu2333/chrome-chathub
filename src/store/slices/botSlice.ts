@@ -1,6 +1,17 @@
 import { StateCreator } from 'zustand';
 import { AppState, BotSlice } from '../types';
 import { ChatBot, DEFAULT_ADAPTERS, ServiceAdapter, StorageData } from '../../types';
+import { appStorageGet, appStorageSet } from '../../lib/appStorage';
+
+function getDefaultBots(): ChatBot[] {
+    return DEFAULT_ADAPTERS
+        .filter((adapter) => adapter.id === 'openai' || adapter.id === 'claude')
+        .map((adapter) => ({
+            ...adapter,
+            isActive: true,
+            instanceId: crypto.randomUUID()
+        }));
+}
 
 export const createBotSlice: StateCreator<AppState, [], [], BotSlice> = (set, get) => ({
     activeBots: [],
@@ -70,13 +81,9 @@ export const createBotSlice: StateCreator<AppState, [], [], BotSlice> = (set, ge
         const customAdapters = newAdapters.filter(a =>
             !DEFAULT_ADAPTERS.some(defaultAdapter => defaultAdapter.id === a.id)
         );
-        chrome.storage.local.set({ customAdapters }, () => {
-            if (chrome.runtime.lastError) {
-                console.error('[ChatHub] Failed to save custom adapters:', chrome.runtime.lastError);
-                return;
-            }
-            console.log('[ChatHub] Custom adapters saved:', customAdapters.length);
-        });
+        void appStorageSet({ customAdapters })
+            .then(() => console.log('[ChatHub] Custom adapters saved:', customAdapters.length))
+            .catch((error) => console.error('[ChatHub] Failed to save custom adapters:', error));
     },
 
     removeCustomAdapter: (id) => {
@@ -101,13 +108,9 @@ export const createBotSlice: StateCreator<AppState, [], [], BotSlice> = (set, ge
         const customAdapters = newAdapters.filter(a =>
             !DEFAULT_ADAPTERS.some(defaultAdapter => defaultAdapter.id === a.id)
         );
-        chrome.storage.local.set({ customAdapters }, () => {
-            if (chrome.runtime.lastError) {
-                console.error('[ChatHub] Failed to remove custom adapter:', chrome.runtime.lastError);
-                return;
-            }
-            console.log('[ChatHub] Custom adapter removed:', id);
-        });
+        void appStorageSet({ customAdapters })
+            .then(() => console.log('[ChatHub] Custom adapter removed:', id))
+            .catch((error) => console.error('[ChatHub] Failed to remove custom adapter:', error));
     },
 
     updateCustomAdapter: (id, updatedAdapter) => {
@@ -140,18 +143,14 @@ export const createBotSlice: StateCreator<AppState, [], [], BotSlice> = (set, ge
         const customAdapters = newAdapters.filter(a =>
             !DEFAULT_ADAPTERS.some(defaultAdapter => defaultAdapter.id === a.id)
         );
-        chrome.storage.local.set({ customAdapters }, () => {
-            if (chrome.runtime.lastError) {
-                console.error('[ChatHub] Failed to update custom adapter:', chrome.runtime.lastError);
-                return;
-            }
-            console.log('[ChatHub] Custom adapter updated:', id);
-        });
+        void appStorageSet({ customAdapters })
+            .then(() => console.log('[ChatHub] Custom adapter updated:', id))
+            .catch((error) => console.error('[ChatHub] Failed to update custom adapter:', error));
     },
 
     loadCustomAdapters: async () => {
         try {
-            const result = await chrome.storage.local.get(['customAdapters']) as StorageData;
+            const result = await appStorageGet<StorageData>(['customAdapters']);
             const customAdapters = result.customAdapters || [];
 
             if (customAdapters.length > 0) {
@@ -167,10 +166,10 @@ export const createBotSlice: StateCreator<AppState, [], [], BotSlice> = (set, ge
 
     loadActiveBots: async () => {
         try {
-            const result = await chrome.storage.local.get(['activeBotIds']) as Partial<StorageData>;
-            const activeBotIds = result.activeBotIds || null;
+            const result = await appStorageGet<StorageData>(['activeBotIds']);
+            const activeBotIds = result.activeBotIds;
 
-            if (activeBotIds && activeBotIds.length > 0) {
+            if (Array.isArray(activeBotIds)) {
                 // Restore bots from saved IDs
                 const state = get();
                 const restoredBots = activeBotIds
@@ -186,22 +185,14 @@ export const createBotSlice: StateCreator<AppState, [], [], BotSlice> = (set, ge
                 console.log('[ChatHub] Restored active bots:', restoredBots.length);
             } else {
                 // First time use - show default bots (ChatGPT + Claude)
-                const defaultBots = DEFAULT_ADAPTERS.slice(0, 2).map(adapter => ({
-                    ...adapter,
-                    isActive: true,
-                    instanceId: crypto.randomUUID()
-                }));
+                const defaultBots = getDefaultBots();
                 set({ activeBots: defaultBots });
                 console.log('[ChatHub] Using default bots');
             }
         } catch (error) {
             console.error('[ChatHub] Failed to load active bots:', error);
             // Fallback to defaults on error
-            const defaultBots = DEFAULT_ADAPTERS.slice(0, 2).map(adapter => ({
-                ...adapter,
-                isActive: true,
-                instanceId: crypto.randomUUID()
-            }));
+            const defaultBots = getDefaultBots();
             set({ activeBots: defaultBots });
         }
     },
@@ -209,18 +200,14 @@ export const createBotSlice: StateCreator<AppState, [], [], BotSlice> = (set, ge
     saveActiveBots: () => {
         const state = get();
         const activeBotIds = state.activeBots.map(bot => bot.id);
-        chrome.storage.local.set({ activeBotIds }, () => {
-            if (chrome.runtime.lastError) {
-                console.error('[ChatHub] Failed to save active bots:', chrome.runtime.lastError);
-                return;
-            }
-            console.log('[ChatHub] Saved active bots:', activeBotIds);
-        });
+        void appStorageSet({ activeBotIds })
+            .then(() => console.log('[ChatHub] Saved active bots:', activeBotIds))
+            .catch((error) => console.error('[ChatHub] Failed to save active bots:', error));
     },
 
     loadPreferences: async () => {
         try {
-            const result = await chrome.storage.local.get(['adapterPreferences']) as Partial<StorageData>;
+            const result = await appStorageGet<StorageData>(['adapterPreferences']);
             const prefs = result.adapterPreferences || [];
             set({ adapterPreferences: prefs });
             console.log('[ChatHub] Loaded preferences:', prefs.length);
@@ -241,7 +228,8 @@ export const createBotSlice: StateCreator<AppState, [], [], BotSlice> = (set, ge
         }
 
         set({ adapterPreferences: prefs });
-        chrome.storage.local.set({ adapterPreferences: prefs });
+        void appStorageSet({ adapterPreferences: prefs })
+            .catch((error) => console.error('[ChatHub] Failed to save adapter preferences:', error));
     },
 
     updateAdapterOrder: (id, newOrder) => {
@@ -256,6 +244,7 @@ export const createBotSlice: StateCreator<AppState, [], [], BotSlice> = (set, ge
         }
 
         set({ adapterPreferences: prefs });
-        chrome.storage.local.set({ adapterPreferences: prefs });
+        void appStorageSet({ adapterPreferences: prefs })
+            .catch((error) => console.error('[ChatHub] Failed to save adapter preferences:', error));
     }
 });

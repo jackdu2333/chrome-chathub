@@ -12,6 +12,7 @@ export interface DriverTraceEntry {
 
 export interface DriverExecutionContext {
   trace: (entry: Omit<DriverTraceEntry, 'timestamp'>) => void;
+  assertActive: () => void;
 }
 
 export class DriverExecutionError extends Error {

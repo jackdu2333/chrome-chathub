@@ -1,9 +1,18 @@
 import { ChangeEvent, ClipboardEvent, KeyboardEvent, useEffect, useRef, useState } from 'react';
-import { FileText, Image as ImageIcon, Link2, Link2Off, Paperclip, PanelLeft, Plus, Send, Target, X, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react';
+import { FileText, Image as ImageIcon, Link2, Link2Off, LoaderCircle, Paperclip, PanelLeft, Plus, RotateCcw, Send, Target, X, CheckCircle2, AlertCircle, AlertTriangle } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useStore } from '../store';
 import { sendMessageBatch } from '../runtime/frameBridge';
 import type { SendResultItem, SendTargetMode } from '../store/types';
+import type { UploadPayload } from '../runtime/protocol';
+import { useFrameSessionStore } from '../runtime/useFrameSessionStore';
+import {
+    MAX_FILE_COUNT,
+    MAX_FILE_SIZE_BYTES,
+    MAX_TOTAL_FILE_SIZE_BYTES,
+    validateUploadSelection,
+    type UploadLimitViolation,
+} from '../lib/uploadLimits';
 
 interface UnifiedInputProps {
     isModelDrawerOpen: boolean;
@@ -18,6 +27,33 @@ const SEND_MODE_LABELS: Record<SendTargetMode, { short: string; icon: typeof Tar
     focused: { short: '当前', icon: Target },
     selected: { short: '自选', icon: Target },
 };
+
+interface SelectedFile extends UploadPayload {
+    id: string;
+    size: number;
+}
+
+interface BatchPayload {
+    instanceIds: string[];
+    text: string;
+    autoSubmit: boolean;
+    selectedFiles: SelectedFile[];
+}
+
+function formatMegabytes(bytes: number) {
+    return Math.round(bytes / 1024 / 1024);
+}
+
+function getUploadViolationMessage(violation: UploadLimitViolation) {
+    switch (violation.code) {
+        case 'TOO_MANY_FILES':
+            return `最多选择 ${MAX_FILE_COUNT} 个文件。`;
+        case 'FILE_TOO_LARGE':
+            return `${violation.fileName} 超过单文件 ${formatMegabytes(MAX_FILE_SIZE_BYTES)} MB 限制。`;
+        case 'TOTAL_TOO_LARGE':
+            return `附件总大小不能超过 ${formatMegabytes(MAX_TOTAL_FILE_SIZE_BYTES)} MB。`;
+    }
+}
 
 export function UnifiedInput({
     isModelDrawerOpen,
@@ -37,9 +73,12 @@ export function UnifiedInput({
         inputDisplayMode,
     } = useStore();
 
-    const [selectedFiles, setSelectedFiles] = useState<{ name: string; type: string; data: string }[]>([]);
+    const [selectedFiles, setSelectedFiles] = useState<SelectedFile[]>([]);
+    const [isSending, setIsSending] = useState(false);
+    const [retryBatch, setRetryBatch] = useState<BatchPayload | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
     const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const sendInFlightRef = useRef(false);
     const [isFocused, setIsFocused] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
     // toast 反馈
@@ -98,53 +137,106 @@ export function UnifiedInput({
         toastTimerRef.current = setTimeout(() => setToast(null), 4000);
     };
 
-    const handleSend = async (modeOverride?: SendTargetMode) => {
-        if (!draftContent.trim() && selectedFiles.length === 0) return;
+    const clearRetryState = () => {
+        setRetryBatch(null);
+    };
 
-        // 快捷键覆盖发送模式：用传入的 mode 解析目标，而非闭包里的旧 sendTargetMode
-        const effectiveMode = modeOverride ?? sendTargetMode;
-        const targetInstanceIds = resolveTargetInstanceIds(effectiveMode);
-
-        // 同时更新 store 状态（让 UI 反映切换）
-        if (modeOverride) setSendTargetMode(modeOverride);
-        if (targetInstanceIds.length === 0) {
-            showToast('error', '请先选择发送目标');
+    const executeBatch = async (payload: BatchPayload) => {
+        if (sendInFlightRef.current) return;
+        if (payload.instanceIds.length === 0) {
+            showToast('error', '请先选择发送目标，输入内容已保留');
             return;
         }
 
-        const results = await sendMessageBatch({
-            instanceIds: targetInstanceIds,
+        if (payload.selectedFiles.length > 0) {
+            const sessions = useFrameSessionStore.getState().sessions;
+            const unsupportedInstanceIds = payload.instanceIds.filter((instanceId) => {
+                const session = sessions[instanceId];
+                return session && session.status !== 'booting' && !session.capabilities.files;
+            });
+            if (unsupportedInstanceIds.length > 0) {
+                const unsupportedNames = unsupportedInstanceIds
+                    .map((instanceId) => activeBots.find((bot) => bot.instanceId === instanceId)?.name)
+                    .filter((botName): botName is string => Boolean(botName));
+                showToast('error', `${unsupportedNames.join('、') || `${unsupportedInstanceIds.length} 个窗口`}不支持附件，本次未发送`);
+                return;
+            }
+        }
+
+        sendInFlightRef.current = true;
+        setIsSending(true);
+        setRetryBatch(null);
+
+        try {
+            const results = await sendMessageBatch({
+                instanceIds: payload.instanceIds,
+                text: payload.text,
+                autoSubmit: payload.autoSubmit,
+                files: payload.selectedFiles.map(({ name, type, data }) => ({ name, type, data })),
+            });
+
+            const botMap = new Map(activeBots.map(b => [b.instanceId, b.name]));
+            const items: SendResultItem[] = results.map(r => ({
+                instanceId: r.instanceId,
+                botName: botMap.get(r.instanceId) ?? 'Unknown',
+                success: r.success,
+                error: r.error,
+                timestamp: Date.now(),
+            }));
+
+            const successCount = items.filter(i => i.success).length;
+            const failedItems = items.filter(i => !i.success);
+            setLastSendSummary({
+                total: items.length,
+                successCount,
+                failedCount: failedItems.length,
+                items,
+            });
+
+            if (failedItems.length > 0) {
+                setRetryBatch({
+                    ...payload,
+                    instanceIds: failedItems.map((item) => item.instanceId),
+                });
+                if (successCount > 0) {
+                    showToast('partial', `已处理 ${successCount} 个，失败 ${failedItems.length} 个，输入和附件已保留`);
+                } else {
+                    showToast('error', '全部窗口处理失败，输入和附件已保留', failedItems[0]?.error);
+                }
+                return;
+            }
+
+            if (draftContent === payload.text) {
+                setDraftContent('');
+            }
+            setSelectedFiles((currentFiles) => currentFiles === payload.selectedFiles ? [] : currentFiles);
+            showToast('success', payload.autoSubmit
+                ? `已发送到 ${successCount} 个模型`
+                : `已填充 ${successCount} 个模型，未自动发送`);
+        } catch (error) {
+            setRetryBatch(payload);
+            showToast('error', '发送失败，输入和附件已保留', error instanceof Error ? error.message : 'UNKNOWN_ERROR');
+        } finally {
+            sendInFlightRef.current = false;
+            setIsSending(false);
+        }
+    };
+
+    const handleSend = (modeOverride?: SendTargetMode) => {
+        if (!draftContent.trim() && selectedFiles.length === 0) return;
+        const effectiveMode = modeOverride ?? sendTargetMode;
+        if (modeOverride) setSendTargetMode(modeOverride);
+        void executeBatch({
+            instanceIds: resolveTargetInstanceIds(effectiveMode),
             text: draftContent,
             autoSubmit: isSyncEnabled,
-            files: selectedFiles
+            selectedFiles,
         });
+    };
 
-        // 构建发送结果摘要
-        const botMap = new Map(activeBots.map(b => [b.instanceId, b.name]));
-        const items: SendResultItem[] = results.map(r => ({
-            instanceId: r.instanceId,
-            botName: botMap.get(r.instanceId) ?? 'Unknown',
-            success: r.success,
-            error: r.error,
-            timestamp: Date.now(),
-        }));
-
-        const successCount = items.filter(i => i.success).length;
-        const failedCount = items.length - successCount;
-        const summary = { total: items.length, successCount, failedCount, items };
-        setLastSendSummary(summary);
-
-        // 草稿保护：全部成功才清空
-        if (failedCount === 0) {
-            setDraftContent('');
-            setSelectedFiles([]);
-            showToast('success', `已发送到 ${successCount} 个模型`);
-        } else if (successCount > 0) {
-            const failedNames = items.filter(i => !i.success).map(i => i.botName).join('、');
-            showToast('partial', `已发送 ${successCount} 个，失败 ${failedCount} 个：${failedNames}`);
-        } else {
-            const firstError = items.find(i => i.error)?.error ?? '未知错误';
-            showToast('error', `发送失败，草稿已保留`, firstError);
+    const handleRetry = () => {
+        if (retryBatch) {
+            void executeBatch(retryBatch);
         }
     };
 
@@ -171,24 +263,43 @@ export function UnifiedInput({
     };
 
     const handleNewChat = () => {
+        clearRetryState();
         reloadAllBots();
     };
 
     const processFiles = async (files: File[]) => {
-        const processedFiles = await Promise.all(files.map(file => {
-            return new Promise<{ name: string; type: string; data: string }>((resolve) => {
+        const violation = validateUploadSelection(selectedFiles, files);
+        if (violation) {
+            showToast('error', getUploadViolationMessage(violation));
+            return;
+        }
+
+        try {
+            const processedFiles = await Promise.all(files.map(file => {
+            return new Promise<SelectedFile>((resolve, reject) => {
                 const reader = new FileReader();
                 reader.onloadend = () => {
+                    if (typeof reader.result !== 'string') {
+                        reject(new Error('FILE_READ_FAILED'));
+                        return;
+                    }
                     resolve({
+                        id: crypto.randomUUID(),
                         name: file.name,
                         type: file.type,
-                        data: reader.result as string
+                        data: reader.result,
+                        size: file.size,
                     });
                 };
+                reader.onerror = () => reject(reader.error ?? new Error('FILE_READ_FAILED'));
                 reader.readAsDataURL(file);
             });
-        }));
-        setSelectedFiles(prev => [...prev, ...processedFiles]);
+            }));
+            setSelectedFiles(prev => [...prev, ...processedFiles]);
+            clearRetryState();
+        } catch (error) {
+            showToast('error', '读取附件失败', error instanceof Error ? error.message : 'UNKNOWN_ERROR');
+        }
     };
 
     const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -205,8 +316,9 @@ export function UnifiedInput({
         }
     };
 
-    const handleRemoveFile = (index: number) => {
-        setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+    const handleRemoveFile = (id: string) => {
+        setSelectedFiles(prev => prev.filter(file => file.id !== id));
+        clearRetryState();
     };
 
     const resizeTextarea = (element?: HTMLTextAreaElement | null) => {
@@ -219,6 +331,7 @@ export function UnifiedInput({
 
     const handleDraftChange = (e: ChangeEvent<HTMLTextAreaElement>) => {
         setDraftContent(e.target.value);
+        clearRetryState();
         resizeTextarea(e.target);
     };
 
@@ -228,6 +341,8 @@ export function UnifiedInput({
 
     const windowCount = activeBots.length;
     const hasNoTargets = resolveTargetInstanceIds().length === 0;
+    const hasPayload = draftContent.trim().length > 0 || selectedFiles.length > 0;
+    const sendDisabled = !hasPayload || hasNoTargets || isSending;
 
     // 循环切换发送模式
     const cycleSendMode = () => {
@@ -291,15 +406,16 @@ export function UnifiedInput({
                         multiple
                         ref={fileInputRef}
                         className="hidden"
+                        disabled={isSending}
                         onChange={handleFileSelect}
                     />
 
                     <div className="flex flex-col gap-2 px-2.5 py-2.5">
                         {selectedFiles.length > 0 && (
                             <div className="flex flex-wrap gap-2">
-                                {selectedFiles.map((file, index) => (
+                                {selectedFiles.map((file) => (
                                     <div
-                                        key={index}
+                                        key={file.id}
                                         className="flex max-w-[220px] items-center gap-2 rounded-full border border-white/[0.07] bg-white/[0.045] px-3 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
                                     >
                                         <div className="flex-shrink-0 text-[#c2ccd6]">
@@ -307,8 +423,10 @@ export function UnifiedInput({
                                         </div>
                                         <span className="truncate text-sm text-slate-200">{file.name}</span>
                                         <button
-                                            onClick={() => handleRemoveFile(index)}
+                                            onClick={() => handleRemoveFile(file.id)}
+                                            disabled={isSending}
                                             className="rounded-full p-1 text-slate-400 transition-colors hover:bg-white/[0.08] hover:text-white"
+                                            aria-label={`移除附件 ${file.name}`}
                                         >
                                             <X className="h-3 w-3" />
                                         </button>
@@ -317,10 +435,27 @@ export function UnifiedInput({
                             </div>
                         )}
 
+                        {retryBatch && (
+                            <div role="alert" className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/20 bg-amber-950/30 px-3 py-2 text-[12px] text-amber-200">
+                                <span>{retryBatch.instanceIds.length} 个窗口处理失败，输入和附件已保留。</span>
+                                <button
+                                    type="button"
+                                    onClick={handleRetry}
+                                    disabled={isSending}
+                                    className="flex shrink-0 items-center gap-1.5 rounded-lg border border-white/10 px-2.5 py-1.5 text-white hover:bg-white/10 disabled:opacity-50"
+                                >
+                                    <RotateCcw className="h-3.5 w-3.5" />
+                                    仅重试失败窗口
+                                </button>
+                            </div>
+                        )}
+
                         <div className="flex items-center gap-2">
                             <div className="flex shrink-0 items-center gap-1 rounded-[14px] border border-white/[0.07] bg-[linear-gradient(180deg,rgba(255,255,255,0.038),rgba(255,255,255,0.018))] px-1 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.025)]">
                                 <button
                                     onClick={onToggleModelDrawer}
+                                    disabled={isSending}
+                                    data-model-trigger
                                     className={cn(
                                         "btn-icon flex h-9 items-center justify-center gap-2 px-3 text-slate-200",
                                         isModelDrawerOpen && "border-white/[0.05] bg-[rgba(183,200,191,0.16)] text-[#f1f6f3]"
@@ -349,21 +484,27 @@ export function UnifiedInput({
                                 </button>
 
                                 <button
-                                    onClick={() => setSyncEnabled(!isSyncEnabled)}
+                                    onClick={() => {
+                                        setSyncEnabled(!isSyncEnabled);
+                                        clearRetryState();
+                                    }}
+                                    disabled={isSending}
                                     className={cn(
                                         "btn-icon flex h-9 items-center justify-center gap-2 px-3",
                                         isSyncEnabled
                                             ? "border-white/[0.05] bg-[rgba(183,200,191,0.16)] text-[#f1f6f3]"
                                             : "text-slate-400"
                                     )}
-                                    title={isSyncEnabled ? "同步发送（自动提交）" : "草稿模式（仅注入不提交）"}
+                                    title={isSyncEnabled ? "同步发送（自动提交）" : "仅填充目标窗口，不自动发送"}
+                                    aria-pressed={isSyncEnabled}
                                 >
                                     {isSyncEnabled ? <Link2 className="h-4.5 w-4.5" /> : <Link2Off className="h-4.5 w-4.5" />}
-                                    <span className="hidden xl:inline text-[13px]">{isSyncEnabled ? '同步' : '草稿'}</span>
+                                    <span className="hidden xl:inline text-[13px]">{isSyncEnabled ? '同步' : '仅填充'}</span>
                                 </button>
 
                                 <button
                                     onClick={() => fileInputRef.current?.click()}
+                                    disabled={isSending}
                                     className="btn-icon flex h-9 w-9 items-center justify-center text-slate-300"
                                     title="上传文件"
                                 >
@@ -386,7 +527,8 @@ export function UnifiedInput({
                                     onPaste={handlePaste}
                                     onFocus={() => setIsFocused(true)}
                                     onBlur={() => setIsFocused(false)}
-                                    placeholder={hasNoTargets ? "请先选择发送目标..." : isSyncEnabled ? "把消息发往目标窗口..." : "先写草稿，按 Enter 注入到目标窗口..."}
+                                    disabled={isSending}
+                                    placeholder={hasNoTargets ? "请先选择发送目标..." : isSyncEnabled ? "把消息发往目标窗口..." : "填充目标窗口，但不自动发送..."}
                                     className={cn(
                                         "min-w-0 flex-1 resize-none border-none bg-transparent outline-none focus:ring-0",
                                         "text-[15px] leading-6 text-white placeholder:text-slate-500",
@@ -414,6 +556,7 @@ export function UnifiedInput({
                             <div className="flex shrink-0 items-center gap-2">
                                 <button
                                     onClick={handleNewChat}
+                                    disabled={isSending}
                                     className="btn-secondary h-10 rounded-full px-4 text-slate-200"
                                     title="开启新对话"
                                 >
@@ -423,13 +566,17 @@ export function UnifiedInput({
 
                                 <button
                                     onClick={() => { void handleSend(); }}
-                                    disabled={(!draftContent.trim() && selectedFiles.length === 0) || hasNoTargets}
+                                    disabled={sendDisabled}
+                                    aria-label={isSending ? "正在处理" : isSyncEnabled ? "发送到目标窗口" : "填充目标窗口"}
+                                    aria-busy={isSending}
                                     className={cn(
                                         "btn-primary flex h-10 min-w-[48px] items-center justify-center rounded-[14px] px-4 shrink-0",
-                                        ((!draftContent.trim() && selectedFiles.length === 0) || hasNoTargets) && "cursor-not-allowed opacity-50"
+                                        sendDisabled && "cursor-not-allowed opacity-50"
                                     )}
                                 >
-                                    <Send className="h-4.5 w-4.5" />
+                                    {isSending
+                                        ? <LoaderCircle className="h-4.5 w-4.5 animate-spin" />
+                                        : <Send className="h-4.5 w-4.5" />}
                                 </button>
                             </div>
                         </div>

@@ -1,10 +1,13 @@
 import { StateCreator } from 'zustand';
 import { AppState, SettingsSlice, UIThemeVariant } from '../types';
-
-const THEME_KEY = 'uiThemeVariant';
+import { appStorageGet, appStorageSet } from '../../lib/appStorage';
 
 function isUIThemeVariant(value: unknown): value is UIThemeVariant {
     return value === 'morandi' || value === 'bold';
+}
+
+function isThemeMode(value: unknown): value is SettingsSlice['themeMode'] {
+    return value === 'light' || value === 'dark' || value === 'system';
 }
 
 export const createSettingsSlice: StateCreator<AppState, [], [], SettingsSlice> = (set) => ({
@@ -17,32 +20,43 @@ export const createSettingsSlice: StateCreator<AppState, [], [], SettingsSlice> 
     // 发送结果反馈初始为空
     lastSendSummary: null,
 
-    setSyncEnabled: (enabled) => set({ isSyncEnabled: enabled }),
+    setSyncEnabled: (enabled) => {
+        set({ isSyncEnabled: enabled });
+        void appStorageSet({ isSyncEnabled: enabled })
+            .catch((error) => console.error('[ChatHub] Failed to save sync setting:', error));
+    },
     setDraftContent: (content) => set({ draftContent: content }),
     setUIThemeVariant: (variant) => {
         set({ uiThemeVariant: variant });
-        chrome.storage.local.set({ [THEME_KEY]: variant });
+        void appStorageSet({ uiThemeVariant: variant })
+            .catch((error) => console.error('[ChatHub] Failed to save UI theme:', error));
     },
     setThemeMode: (mode) => {
         set({ themeMode: mode });
-        chrome.storage.local.set({ themeMode: mode });
+        void appStorageSet({ themeMode: mode })
+            .catch((error) => console.error('[ChatHub] Failed to save theme mode:', error));
     },
     setInputDisplayMode: (mode) => {
         set({ inputDisplayMode: mode });
-        chrome.storage.local.set({ inputDisplayMode: mode });
+        void appStorageSet({ inputDisplayMode: mode })
+            .catch((error) => console.error('[ChatHub] Failed to save input display mode:', error));
     },
     setLastSendSummary: (summary) => set({ lastSendSummary: summary }),
     loadSettings: async () => {
         try {
-            const result = await chrome.storage.local.get([THEME_KEY, 'themeMode', 'inputDisplayMode']) as {
+            const result = await appStorageGet<{
+                isSyncEnabled?: unknown;
                 uiThemeVariant?: unknown;
                 themeMode?: unknown;
                 inputDisplayMode?: unknown;
-            };
+            }>(['isSyncEnabled', 'uiThemeVariant', 'themeMode', 'inputDisplayMode']);
+            if (typeof result.isSyncEnabled === 'boolean') {
+                set({ isSyncEnabled: result.isSyncEnabled });
+            }
             if (isUIThemeVariant(result.uiThemeVariant)) {
                 set({ uiThemeVariant: result.uiThemeVariant });
             }
-            if (result.themeMode === 'light' || result.themeMode === 'dark' || result.themeMode === 'system') {
+            if (isThemeMode(result.themeMode)) {
                 set({ themeMode: result.themeMode });
             }
             if (result.inputDisplayMode === 'always' || result.inputDisplayMode === 'auto-hide') {

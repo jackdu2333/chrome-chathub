@@ -10,6 +10,7 @@ import type {
   UserMessagePayload,
 } from '../../types';
 import { DriverExecutionError, type DriverExecutionContext } from '../drivers/types';
+import { isCommandExpirationError } from '../../runtime/commandDeadline';
 
 type QueryRoot = Document | Element | ShadowRoot;
 
@@ -486,7 +487,7 @@ export async function uploadFiles(
 
   for (const currentStrategy of orderedStrategies) {
     if (currentStrategy === 'paste') {
-      const success = await tryPasteUpload(targetElement, dataTransfer);
+      const success = await tryPasteUpload(targetElement, dataTransfer, fileObjects);
       if (success) {
         return true;
       }
@@ -500,7 +501,7 @@ export async function uploadFiles(
     }
 
     if (currentStrategy === 'drop') {
-      const success = await tryDropUpload(targetElement, dataTransfer);
+      const success = await tryDropUpload(targetElement, dataTransfer, fileObjects);
       if (success) {
         return true;
       }
@@ -508,6 +509,63 @@ export async function uploadFiles(
   }
 
   return false;
+}
+
+interface UploadEvidenceSnapshot {
+  attachmentElementCount: number;
+  blobPreviewCount: number;
+  inputFileSignatures: Set<string>;
+  visibleFileNames: Set<string>;
+}
+
+const ATTACHMENT_EVIDENCE_SELECTOR = [
+  '[data-testid*="attachment" i]',
+  '[class*="attachment" i]',
+  '[aria-label*="attachment" i]',
+  '[aria-label*="附件"]',
+  '[class*="upload-preview" i]',
+].join(',');
+
+function getFileSignature(file: Pick<File, 'name' | 'size'>) {
+  return `${file.name}:${file.size}`;
+}
+
+function captureUploadEvidence(files: File[]): UploadEvidenceSnapshot {
+  const bodyText = document.body?.textContent ?? '';
+  const inputFiles = Array.from(document.querySelectorAll('input[type="file"]'))
+    .flatMap((input) => Array.from((input as HTMLInputElement).files ?? []));
+
+  return {
+    attachmentElementCount: document.querySelectorAll(ATTACHMENT_EVIDENCE_SELECTOR).length,
+    blobPreviewCount: document.querySelectorAll('img[src^="blob:"], video[src^="blob:"]').length,
+    inputFileSignatures: new Set(inputFiles.map(getFileSignature)),
+    visibleFileNames: new Set(files.filter((file) => bodyText.includes(file.name)).map((file) => file.name)),
+  };
+}
+
+function hasNewUploadEvidence(
+  before: UploadEvidenceSnapshot,
+  after: UploadEvidenceSnapshot,
+  files: File[]
+) {
+  const expectedSignatures = files.map(getFileSignature);
+  const inputContainsFiles = expectedSignatures.every(
+    (signature) => after.inputFileSignatures.has(signature)
+  ) && expectedSignatures.some((signature) => !before.inputFileSignatures.has(signature));
+  const visibleNamesAdded = files.every((file) => after.visibleFileNames.has(file.name))
+    && files.some((file) => !before.visibleFileNames.has(file.name));
+
+  return inputContainsFiles
+    || visibleNamesAdded
+    || after.attachmentElementCount > before.attachmentElementCount
+    || after.blobPreviewCount > before.blobPreviewCount;
+}
+
+async function waitForUploadEvidence(before: UploadEvidenceSnapshot, files: File[]) {
+  return waitForCondition(
+    () => hasNewUploadEvidence(before, captureUploadEvidence(files), files),
+    { timeoutMs: 1800, intervalMs: 120 }
+  );
 }
 
 function normalizeUploadStrategies(strategy: FileUploadStrategy) {
@@ -526,13 +584,18 @@ function normalizeUploadStrategies(strategy: FileUploadStrategy) {
   }
 }
 
-async function tryPasteUpload(targetElement: HTMLElement, dataTransfer: DataTransfer) {
+async function tryPasteUpload(
+  targetElement: HTMLElement,
+  dataTransfer: DataTransfer,
+  files: File[]
+) {
   const editableTarget = resolveEditableElement(targetElement);
   if (!(editableTarget.isContentEditable || editableTarget.getAttribute('contenteditable') === 'true')) {
     return false;
   }
 
   try {
+    const before = captureUploadEvidence(files);
     const pasteEvent = new ClipboardEvent('paste', {
       bubbles: true,
       cancelable: true,
@@ -541,7 +604,7 @@ async function tryPasteUpload(targetElement: HTMLElement, dataTransfer: DataTran
     });
     editableTarget.focus();
     editableTarget.dispatchEvent(pasteEvent);
-    return true;
+    return await waitForUploadEvidence(before, files);
   } catch {
     return false;
   }
@@ -565,14 +628,24 @@ async function tryInputUpload(targetElement: HTMLElement, dataTransfer: DataTran
     fileInput.files = dataTransfer.files;
     fileInput.dispatchEvent(new Event('change', { bubbles: true }));
     fileInput.dispatchEvent(new Event('input', { bubbles: true }));
-    return true;
+    const assignedFiles = Array.from(fileInput.files ?? []);
+    const expectedFiles = Array.from(dataTransfer.files);
+    return expectedFiles.length > 0
+      && expectedFiles.every((file) => assignedFiles.some(
+        (assignedFile) => getFileSignature(assignedFile) === getFileSignature(file)
+      ));
   } catch {
     return false;
   }
 }
 
-async function tryDropUpload(targetElement: HTMLElement, dataTransfer: DataTransfer) {
+async function tryDropUpload(
+  targetElement: HTMLElement,
+  dataTransfer: DataTransfer,
+  files: File[]
+) {
   try {
+    const before = captureUploadEvidence(files);
     const eventProps = {
       bubbles: true,
       cancelable: true,
@@ -587,7 +660,7 @@ async function tryDropUpload(targetElement: HTMLElement, dataTransfer: DataTrans
     document.body.dispatchEvent(new DragEvent('dragenter', eventProps));
     document.body.dispatchEvent(new DragEvent('dragover', eventProps));
     document.body.dispatchEvent(new DragEvent('drop', eventProps));
-    return true;
+    return await waitForUploadEvidence(before, files);
   } catch {
     return false;
   }
@@ -671,6 +744,7 @@ export async function runStandardFlow(
   options?: FlowExecutionOptions,
   context?: DriverExecutionContext
 ) {
+  context?.assertActive();
   const inputSelector = options?.inputSelector ?? adapter.inputSelector;
   const submitSelector = options?.submitSelector ?? adapter.submitSelector;
   const submitMode = options?.submitMode ?? adapter.submitMode ?? 'auto';
@@ -700,9 +774,13 @@ export async function runStandardFlow(
       timeoutMs: options?.waitForInputTimeoutMs ?? 7000,
       visible: true,
     });
+    context?.assertActive();
     context?.trace({ step: 'input', status: 'success', message: inputDebug });
     context?.trace({ step: 'ready', status: 'success', message: adapter.id });
   } catch (error) {
+    if (isCommandExpirationError(error)) {
+      throw error;
+    }
     context?.trace({ step: 'input', status: 'error', message: inputDebug });
     throw new DriverExecutionError(
       'input',
@@ -712,6 +790,7 @@ export async function runStandardFlow(
   }
 
   if (payload.files?.length) {
+    context?.assertActive();
     const uploadStrategy =
       options?.uploadStrategy ??
       adapter.uploadStrategy ??
@@ -725,14 +804,19 @@ export async function runStandardFlow(
     context?.trace({ step: 'upload', status: 'success', message: uploadStrategy });
 
     await randomDelay(...(options?.postUploadDelayRange ?? [2500, 4000]));
+    context?.assertActive();
   }
 
   if (payload.text) {
+    context?.assertActive();
     context?.trace({ step: 'text', status: 'start', message: adapter.id });
     try {
       await applyInputMethod(inputElement, payload.text, inputMethod);
       context?.trace({ step: 'text', status: 'success', message: adapter.id });
     } catch (error) {
+      if (isCommandExpirationError(error)) {
+        throw error;
+      }
       context?.trace({
         step: 'text',
         status: 'error',
@@ -751,10 +835,12 @@ export async function runStandardFlow(
   }
 
   await randomDelay(...(options?.beforeSubmitDelayRange ?? [250, 600]));
+  context?.assertActive();
   const beforeSubmitText = getElementTextSnapshot(inputElement);
   const verifyTimeoutMs = Math.min(options?.waitForSubmitTimeoutMs ?? 1800, 2500);
 
   if (submitMode === 'enter') {
+    context?.assertActive();
     context?.trace({ step: 'submit', status: 'start', message: 'enter' });
     await simulateEnterKey(inputElement);
     if (submitVerificationMode === 'none') {
@@ -791,6 +877,7 @@ export async function runStandardFlow(
       const submitButton = await waitForElementEnabled(submitSelector, {
         timeoutMs: options?.waitForSubmitTimeoutMs ?? 7000,
       });
+      context?.assertActive();
       clickElement(submitButton);
       if (submitVerificationMode === 'none') {
         context?.trace({ step: 'submit', status: 'success', message: submitDebug });
@@ -817,6 +904,9 @@ export async function runStandardFlow(
 
       context?.trace({ step: 'verify', status: 'error', message: 'button-not-verified' });
     } catch (error) {
+      if (isCommandExpirationError(error)) {
+        throw error;
+      }
       context?.trace({
         step: 'submit',
         status: 'error',
@@ -833,6 +923,7 @@ export async function runStandardFlow(
   }
 
   context?.trace({ step: 'submit', status: 'start', message: 'enter-fallback' });
+  context?.assertActive();
   await simulateEnterKey(inputElement);
   if (submitVerificationMode === 'none') {
     context?.trace({ step: 'submit', status: 'success', message: 'enter-fallback' });

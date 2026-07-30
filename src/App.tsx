@@ -80,7 +80,7 @@ function App() {
   const [focusedInstanceId, setFocusedInstanceId] = useState<string | null>(null);
   const [isModelDrawerOpen, setIsModelDrawerOpen] = useState(false);
 
-  const { sensors, activeDragId, handleDragStart, handleDragEnd } = useBotDragAndDrop();
+  const { sensors, activeDragId, handleDragStart, handleDragEnd, handleDragCancel } = useBotDragAndDrop();
 
   const handleToggleBot = (id: string) => {
     toggleBot(id);
@@ -88,6 +88,11 @@ function App() {
 
   const toggleModelDrawer = () => {
     setIsModelDrawerOpen((prev) => !prev);
+  };
+
+  const handleOpenSettings = () => {
+    setIsModelDrawerOpen(false);
+    setIsSettingsOpen(true);
   };
 
   useEffect(() => {
@@ -181,7 +186,7 @@ function App() {
         adapters={availableAdapters}
         activeBotIds={activeBots.map(b => b.id)}
         onToggleBot={handleToggleBot}
-        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenSettings={handleOpenSettings}
         isOpen={isModelDrawerOpen}
         onClose={() => setIsModelDrawerOpen(false)}
       />
@@ -244,6 +249,7 @@ function App() {
                 collisionDetection={closestCenter}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
+                onDragCancel={handleDragCancel}
               >
                 <div className="chat-layout-primary-scroll">
                   {/* 主窗口 */}
@@ -298,6 +304,7 @@ function App() {
                       onToggleFocus={() => { }}
                       onRemove={() => { }}
                       isDragging={true}
+                      isDragPreview={true}
                       className="h-full opacity-90 cursor-grabbing"
                     />
                   ) : null}
@@ -310,6 +317,7 @@ function App() {
                 collisionDetection={closestCenter}
                 onDragStart={handleDragStart}
                 onDragEnd={handleDragEnd}
+                onDragCancel={handleDragCancel}
               >
                 <div
                   className={cn(
@@ -354,6 +362,7 @@ function App() {
                       onToggleFocus={() => { }}
                       onRemove={() => { }}
                       isDragging={true}
+                      isDragPreview={true}
                       className="h-full opacity-90 cursor-grabbing"
                     />
                   ) : null}
